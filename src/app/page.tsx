@@ -21,7 +21,6 @@ export default function DashboardPage() {
   const selectedDate = useKetoStore((s) => s.selectedDate);
   const getEntriesForDate = useKetoStore((s) => s.getEntriesForDate);
   const getLogForDate = useKetoStore((s) => s.getLogForDate);
-  const hydrated = useKetoStore((s) => s.hydrated);
 
   const entries = getEntriesForDate(selectedDate);
   const log = getLogForDate(selectedDate);
@@ -35,19 +34,6 @@ export default function DashboardPage() {
   );
   const pct = macroPercentages(totals);
   const remaining = remainingTargets(profile, totals);
-
-  if (!hydrated) {
-    return (
-      <div className="space-y-4 animate-pulse">
-        <div className="h-8 w-48 rounded bg-muted" />
-        <div className="h-64 rounded-xl bg-muted" />
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="h-28 rounded-xl bg-muted" />
-          <div className="h-28 rounded-xl bg-muted" />
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-8">
