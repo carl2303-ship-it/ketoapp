@@ -1,3 +1,59 @@
 # KetoTrack & Plan
 
-Repositório do app cetogénico. O desenvolvimento corre na branch `cursor/ketotrack-app-a854`.
+Web app cetogénica + performance: macros, net carbs, diário alimentar e planeamento.
+
+## Stack
+
+- Next.js (App Router) + TypeScript + Tailwind CSS
+- shadcn/ui + Lucide + Recharts + Zustand
+- Supabase (PostgreSQL + RLS + Auth)
+
+## Como correr
+
+```bash
+npm install
+cp .env.example .env.local
+# preenche NEXT_PUBLIC_SUPABASE_ANON_KEY e/ou NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+npm run dev
+```
+
+App em [http://127.0.0.1:4321](http://127.0.0.1:4321).
+
+## Variáveis de ambiente
+
+| Variável | Obrigatória | Descrição |
+|---|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | Sim (para remoto) | URL do projeto, ex. `https://oymdacaicfyejuizyosw.supabase.co` |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Preferida | Chave publishable (`sb_publishable_…`) |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Alternativa | Chave anon JWT legada |
+
+Sem chave válida, a UI corre em **modo mock** (localStorage + seed de ≥20 alimentos).
+
+**Nunca commits de `.env.local`.** Usa só `.env.example` (placeholders).
+
+## Schema / migração
+
+Ficheiro: `supabase/migrations/20260312173000_initial_schema.sql`
+
+Inclui tabelas (`profiles`, `foods`, `recipes`, `recipe_items`, `daily_logs`, `meal_entries`, `weekly_plans`), RLS e seed de alimentos keto.
+
+Aplica no [SQL Editor](https://supabase.com/dashboard/project/oymdacaicfyejuizyosw/sql) do projeto se o CLI/MCP não tiver permissão.
+
+## Funcionalidades (slice atual)
+
+| Área | Estado |
+|---|---|
+| Dashboard (anel macros + cartões) | Feito |
+| Registo de alimentos / diário | Feito |
+| Gestão de alimentos (pesquisa, filtros, criar) | Feito |
+| Eletrólitos (gráfico vs meta) | Leve |
+| Planeador semanal | Stub |
+| Receitas | Stub |
+| TKD flag no registo | Feito |
+| GKI / cetonas UI | Stub (colunas no schema) |
+
+## Scripts
+
+- `npm run dev` — porto 4321
+- `npm run build` / `npm start`
+- `npm run lint`
