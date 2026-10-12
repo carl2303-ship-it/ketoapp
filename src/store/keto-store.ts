@@ -125,7 +125,6 @@ export const useKetoStore = create<KetoState>()(
             foods: remoteFoods.length > 0 ? remoteFoods : SEED_FOODS,
           });
 
-          // Optional: load today's log if authenticated
           const { data: auth } = await supabase.auth.getUser();
           if (auth.user) {
             const date = get().selectedDate;
@@ -315,8 +314,8 @@ export const useKetoStore = create<KetoState>()(
         mealEntries: s.mealEntries,
         selectedDate: s.selectedDate,
       }),
-      onRehydrateStorage: () => (state) => {
-        state?.setHydrated(true);
+      onRehydrateStorage: () => () => {
+        useKetoStore.setState({ hydrated: true });
       },
     },
   ),
