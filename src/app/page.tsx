@@ -70,7 +70,7 @@ export default function DashboardPage() {
                   calorieTarget={profile.daily_calories_target}
                 />
               </div>
-              <div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs">
+              <div className="mt-4 grid grid-cols-2 gap-2 text-center text-xs sm:grid-cols-4">
                 <div>
                   <p className="font-medium text-emerald-500">
                     {formatNum(pct.fat, 0)}%
@@ -85,6 +85,14 @@ export default function DashboardPage() {
                   </p>
                   <p className="text-muted-foreground">
                     Proteína · {formatNum(totals.protein_g, 1)} g
+                  </p>
+                </div>
+                <div>
+                  <p className="font-medium text-lime-500">
+                    F {formatNum(totals.fiber_g, 1)}
+                  </p>
+                  <p className="text-muted-foreground">
+                    Fibras · {formatNum(totals.fiber_g, 1)} g
                   </p>
                 </div>
                 <div>
@@ -103,6 +111,7 @@ export default function DashboardPage() {
             caloriesLeft={remaining.calories}
             netCarbsUsed={totals.net_carbs_g}
             netCarbsTarget={profile.net_carb_target_g}
+            fiberUsed={totals.fiber_g}
             sodiumUsed={totals.sodium_mg + (log?.sodium_mg ?? 0)}
             sodiumTarget={profile.sodium_target_mg}
             waterMl={log?.water_ml ?? 0}

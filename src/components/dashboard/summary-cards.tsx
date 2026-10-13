@@ -10,6 +10,7 @@ interface SummaryCardsProps {
   caloriesLeft: number;
   netCarbsUsed: number;
   netCarbsTarget: number;
+  fiberUsed?: number;
   sodiumUsed: number;
   sodiumTarget: number;
   waterMl: number;
@@ -20,6 +21,7 @@ export function SummaryCards({
   caloriesLeft,
   netCarbsUsed,
   netCarbsTarget,
+  fiberUsed = 0,
   sodiumUsed,
   sodiumTarget,
   waterMl,
@@ -42,7 +44,9 @@ export function SummaryCards({
     {
       title: "Net carbs",
       value: `${formatNum(netCarbsUsed, 1)} / ${formatNum(netCarbsTarget)} g`,
-      hint: carbsOver ? "Alerta: acima da meta" : "Dentro da meta cetogénica",
+      hint: carbsOver
+        ? `Alerta: acima da meta · F ${formatNum(fiberUsed, 1)} g`
+        : `Dentro da meta · F ${formatNum(fiberUsed, 1)} g fibras`,
       icon: Leaf,
       progress: carbsPct,
       alert: carbsOver,
