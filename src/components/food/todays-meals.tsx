@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { MEAL_LABELS, MEAL_TYPES } from "@/lib/types";
-import { formatNum, scaleFood } from "@/lib/macros";
+import { formatNum, portionMacroLine, scaleFood } from "@/lib/macros";
 import { useKetoStore } from "@/store/keto-store";
 
 export function TodaysMeals() {
@@ -55,9 +55,7 @@ export function TodaysMeals() {
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {formatNum(entry.amount_grams)} g
-                        {macros
-                          ? ` · ${formatNum(macros.calories)} kcal · ${formatNum(macros.net_carbs_g, 1)} g NC`
-                          : null}
+                        {macros ? ` · ${portionMacroLine(macros)}` : null}
                       </p>
                       {entry.is_tkd_workout_carb ? (
                         <Badge variant="outline" className="mt-1 text-[10px]">
