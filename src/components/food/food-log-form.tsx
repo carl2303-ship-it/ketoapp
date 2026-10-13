@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,8 +14,9 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FoodCombobox } from "@/components/food/food-combobox";
 import { MEAL_LABELS, MEAL_TYPES, type MealType } from "@/lib/types";
-import { formatNum, netCarbs, scaleFood } from "@/lib/macros";
+import { formatNum, scaleFood } from "@/lib/macros";
 import { useKetoStore } from "@/store/keto-store";
 
 export function FoodLogForm() {
@@ -28,30 +29,19 @@ export function FoodLogForm() {
   const [pending, startTransition] = useTransition();
   const [done, setDone] = useState(false);
 
-  useEffect(() => {
-    if (!foodId && foods[0]?.id) setFoodId(foods[0].id);
-    else if (foodId && !foods.some((f) => f.id === foodId) && foods[0]?.id) {
-      setFoodId(foods[0].id);
-    }
-  }, [foods, foodId]);
-
   const mealItems = useMemo(
     () => MEAL_TYPES.map((m) => ({ value: m, label: MEAL_LABELS[m] })),
     [],
   );
 
-  const foodItems = useMemo(
-    () =>
-      foods.map((f) => ({
-        value: f.id,
-        label: `${f.name}${f.brand ? ` · ${f.brand}` : ""} · ${formatNum(netCarbs(f), 1)}g NC/100g`,
-      })),
-    [foods],
-  );
+  const resolvedFoodId = useMemo(() => {
+    if (foodId && foods.some((f) => f.id === foodId)) return foodId;
+    return foods[0]?.id ?? "";
+  }, [foods, foodId]);
 
   const food = useMemo(
-    () => foods.find((f) => f.id === foodId) ?? foods[0],
-    [foods, foodId],
+    () => foods.find((f) => f.id === resolvedFoodId),
+    [foods, resolvedFoodId],
   );
 
   const preview = food ? scaleFood(food, Number(grams) || 0) : null;
@@ -115,27 +105,14 @@ export function FoodLogForm() {
           </div>
 
           <div className="space-y-2">
-            <Label>Alimento</Label>
-            <Select
-              items={foodItems}
-              value={food?.id ?? null}
-              onValueChange={(v) => {
-                if (v) setFoodId(v);
-              }}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Escolher alimento" />
-              </SelectTrigger>
-              <SelectContent className="max-h-72">
-                {foods.map((f) => (
-                  <SelectItem key={f.id} value={f.id}>
-                    {f.name}
-                    {f.brand ? ` · ${f.brand}` : ""} ·{" "}
-                    {formatNum(netCarbs(f), 1)}g NC/100g
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label htmlFor="food-log-combobox">Alimento</Label>
+            <FoodCombobox
+              id="food-log-combobox"
+              foods={foods}
+              value={resolvedFoodId}
+              onValueChange={setFoodId}
+              placeholder="Escrever nome ou marca…"
+            />
           </div>
 
           <div className="flex items-center justify-between rounded-lg border border-border/70 bg-muted/30 px-3 py-2">
@@ -149,31 +126,47 @@ export function FoodLogForm() {
           </div>
 
           {preview ? (
-            <div className="grid grid-cols-2 gap-2 rounded-lg bg-emerald-500/10 p-3 text-sm sm:grid-cols-4">
-              <div>
-                <p className="text-xs text-muted-foreground">kcal</p>
-                <p className="font-medium tabular-nums">
-                  {formatNum(preview.calories)}
-                </p>
+            <div className="space-y-2">
+              <div className="grid grid-cols-2 gap-2 rounded-lg bg-emerald-500/10 p-3 text-sm sm:grid-cols-5">
+                <div>
+                  <p className="text-xs text-muted-foreground">kcal</p>
+                  <p className="font-medium tabular-nums">
+                    {formatNum(preview.calories)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Gordura</p>
+                  <p className="font-medium tabular-nums">
+                    {formatNum(preview.fat_g, 1)} g
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Proteína</p>
+                  <p className="font-medium tabular-nums">
+                    {formatNum(preview.protein_g, 1)} g
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Fibras</p>
+                  <p className="font-medium tabular-nums text-emerald-700 dark:text-emerald-300">
+                    {formatNum(preview.fiber_g, 1)} g
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Net carbs</p>
+                  <p className="font-medium tabular-nums">
+                    {formatNum(preview.net_carbs_g, 1)} g
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Gordura</p>
-                <p className="font-medium tabular-nums">
-                  {formatNum(preview.fat_g, 1)} g
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Proteína</p>
-                <p className="font-medium tabular-nums">
-                  {formatNum(preview.protein_g, 1)} g
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Net carbs</p>
-                <p className="font-medium tabular-nums">
-                  {formatNum(preview.net_carbs_g, 1)} g
-                </p>
-              </div>
+              <p className="text-[11px] text-muted-foreground">
+                NC = HT {formatNum(preview.carbs_total_g, 1)} − F{" "}
+                {formatNum(preview.fiber_g, 1)}
+                {preview.polyols_g > 0
+                  ? ` − Polióis ${formatNum(preview.polyols_g, 1)}`
+                  : ""}{" "}
+                g
+              </p>
             </div>
           ) : null}
 
