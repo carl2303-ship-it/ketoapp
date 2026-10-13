@@ -8,8 +8,8 @@ export default function ReceitasPage() {
           Receitas & batidos
         </h1>
         <p className="text-muted-foreground">
-          Stub — tabelas `recipes` e `recipe_items` no schema. Construtor em
-          breve.
+          Stub — tabelas `recipes` e `recipe_items` no schema. O construtor vai
+          reutilizar a pesquisa por nome de alimentos (como no Diário e Plano).
         </p>
       </div>
       <Card className="border-dashed border-border/70 bg-card/40">
