@@ -27,17 +27,13 @@ App em [http://127.0.0.1:4321](http://127.0.0.1:4321).
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Preferida | Chave publishable (`sb_publishable_…`) |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Alternativa | Chave anon JWT legada |
 
-Sem chave válida, a UI corre em **modo mock** (localStorage + seed de ≥20 alimentos).
+Sem chave válida, a UI corre em **modo mock** (localStorage + seed).
 
 **Nunca commits de `.env.local`.** Usa só `.env.example` (placeholders).
 
 ## Schema / migração
 
-Ficheiro: `supabase/migrations/20260312173000_initial_schema.sql`
-
-Inclui tabelas (`profiles`, `foods`, `recipes`, `recipe_items`, `daily_logs`, `meal_entries`, `weekly_plans`), RLS e seed de alimentos keto.
-
-Aplica no [SQL Editor](https://supabase.com/dashboard/project/oymdacaicfyejuizyosw/sql) do projeto se o CLI/MCP não tiver permissão.
+Ficheiro: `supabase/migrations/20260312173000_initial_schema.sql` — **já aplicado** no projeto.
 
 ## Funcionalidades (slice atual)
 
@@ -45,12 +41,14 @@ Aplica no [SQL Editor](https://supabase.com/dashboard/project/oymdacaicfyejuizyo
 |---|---|
 | Dashboard (anel macros + cartões) | Feito |
 | Registo de alimentos / diário | Feito |
-| Gestão de alimentos (pesquisa, filtros, criar) | Feito |
-| Eletrólitos (gráfico vs meta) | Leve |
-| Planeador semanal | Stub |
+| Gestão de alimentos (lista remota Supabase) | Feito |
+| Planeador semanal (Seg–Dom, copiar dia, lista compras) | Feito |
+| Eletrólitos + GKI | Feito |
+| Login (sync RLS diário/plano) | Feito (password) |
 | Receitas | Stub |
 | TKD flag no registo | Feito |
-| GKI / cetonas UI | Stub (colunas no schema) |
+
+**Nota RLS:** alimentos globais leem-se sem login. Diário, plano e alimentos pessoais só sincronizam após «Entrar».
 
 ## Scripts
 
