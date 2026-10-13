@@ -104,3 +104,24 @@ export function formatNum(n: number, digits = 0): string {
     minimumFractionDigits: digits,
   });
 }
+
+/** Linha de macros por 100 g — G / P / F / NC (fibras sempre visíveis). */
+export function foodPer100gLine(
+  food: Pick<Food, "fat_g" | "protein_g" | "fiber_g" | "carbs_total_g" | "polyols_g">,
+): string {
+  return `G ${formatNum(food.fat_g, 1)} · P ${formatNum(food.protein_g, 1)} · F ${formatNum(food.fiber_g, 1)} · NC ${formatNum(netCarbs(food), 1)} g`;
+}
+
+/** Etiqueta curta para selects: fibras + net carbs por 100 g. */
+export function foodSelectSuffix(
+  food: Pick<Food, "fiber_g" | "carbs_total_g" | "polyols_g">,
+): string {
+  return `F ${formatNum(food.fiber_g, 1)} · ${formatNum(netCarbs(food), 1)}g NC/100g`;
+}
+
+/** Resumo de porção (kcal + fibras + NC). */
+export function portionMacroLine(
+  macros: Pick<MacroTotals, "calories" | "fiber_g" | "net_carbs_g">,
+): string {
+  return `${formatNum(macros.calories)} kcal · F ${formatNum(macros.fiber_g, 1)} g · ${formatNum(macros.net_carbs_g, 1)} g NC`;
+}
