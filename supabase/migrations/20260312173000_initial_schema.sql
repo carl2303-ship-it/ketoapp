@@ -267,7 +267,10 @@ select * from (values
   ('Camarão cozido', null, 'Proteínas', 99, 0.3, 24, 0.2, 0, 0, 111, 259, 39, 0.1, true, null),
   ('Rúcula', null, 'Vegetais', 25, 0.7, 2.6, 3.7, 1.6, 0, 27, 369, 47, 0.1, true, null),
   ('Queijo fresco / cottage', null, 'Laticínios', 98, 4.3, 11, 3.4, 0, 0, 364, 104, 8, 1.7, true, null),
-  ('Eritritol', null, 'Adoçantes', 20, 0, 0, 100, 0, 100, 0, 0, 0, 0, true, null)
+  ('Eritritol', null, 'Adoçantes', 20, 0, 0, 100, 0, 100, 0, 0, 0, 0, true, null),
+  ('Sementes de linhaça', null, 'Sementes', 534, 42, 18, 29, 27, 0, 30, 813, 392, 3.7, true, null),
+  ('Farinha de coco', null, 'Farinhas', 400, 13, 18, 60, 39, 0, 20, 850, 120, 11, true, null),
+  ('Courgette / abobrinha', null, 'Vegetais', 17, 0.3, 1.2, 3.1, 1, 0, 8, 261, 18, 0.1, true, null)
 ) as v(
   name, brand, category, calories, fat_g, protein_g, carbs_total_g, fiber_g, polyols_g,
   sodium_mg, potassium_mg, magnesium_mg, saturated_fat_g, is_global, user_id
