@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,11 +22,32 @@ export function FoodLogForm() {
   const foods = useKetoStore((s) => s.foods);
   const addMealEntry = useKetoStore((s) => s.addMealEntry);
   const [mealType, setMealType] = useState<MealType>("almoco");
-  const [foodId, setFoodId] = useState(foods[0]?.id ?? "");
+  const [foodId, setFoodId] = useState("");
   const [grams, setGrams] = useState("100");
   const [tkd, setTkd] = useState(false);
   const [pending, startTransition] = useTransition();
   const [done, setDone] = useState(false);
+
+  useEffect(() => {
+    if (!foodId && foods[0]?.id) setFoodId(foods[0].id);
+    else if (foodId && !foods.some((f) => f.id === foodId) && foods[0]?.id) {
+      setFoodId(foods[0].id);
+    }
+  }, [foods, foodId]);
+
+  const mealItems = useMemo(
+    () => MEAL_TYPES.map((m) => ({ value: m, label: MEAL_LABELS[m] })),
+    [],
+  );
+
+  const foodItems = useMemo(
+    () =>
+      foods.map((f) => ({
+        value: f.id,
+        label: `${f.name}${f.brand ? ` · ${f.brand}` : ""} · ${formatNum(netCarbs(f), 1)}g NC/100g`,
+      })),
+    [foods],
+  );
 
   const food = useMemo(
     () => foods.find((f) => f.id === foodId) ?? foods[0],
@@ -61,13 +82,14 @@ export function FoodLogForm() {
             <div className="space-y-2">
               <Label>Refeição</Label>
               <Select
+                items={mealItems}
                 value={mealType}
                 onValueChange={(v) => {
                   if (v) setMealType(v as MealType);
                 }}
               >
                 <SelectTrigger className="w-full">
-                  <SelectValue />
+                  <SelectValue placeholder="Escolher refeição" />
                 </SelectTrigger>
                 <SelectContent>
                   {MEAL_TYPES.map((m) => (
@@ -95,7 +117,8 @@ export function FoodLogForm() {
           <div className="space-y-2">
             <Label>Alimento</Label>
             <Select
-              value={food?.id}
+              items={foodItems}
+              value={food?.id ?? null}
               onValueChange={(v) => {
                 if (v) setFoodId(v);
               }}
@@ -129,19 +152,27 @@ export function FoodLogForm() {
             <div className="grid grid-cols-2 gap-2 rounded-lg bg-emerald-500/10 p-3 text-sm sm:grid-cols-4">
               <div>
                 <p className="text-xs text-muted-foreground">kcal</p>
-                <p className="font-medium tabular-nums">{formatNum(preview.calories)}</p>
+                <p className="font-medium tabular-nums">
+                  {formatNum(preview.calories)}
+                </p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Gordura</p>
-                <p className="font-medium tabular-nums">{formatNum(preview.fat_g, 1)} g</p>
+                <p className="font-medium tabular-nums">
+                  {formatNum(preview.fat_g, 1)} g
+                </p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Proteína</p>
-                <p className="font-medium tabular-nums">{formatNum(preview.protein_g, 1)} g</p>
+                <p className="font-medium tabular-nums">
+                  {formatNum(preview.protein_g, 1)} g
+                </p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Net carbs</p>
-                <p className="font-medium tabular-nums">{formatNum(preview.net_carbs_g, 1)} g</p>
+                <p className="font-medium tabular-nums">
+                  {formatNum(preview.net_carbs_g, 1)} g
+                </p>
               </div>
             </div>
           ) : null}
