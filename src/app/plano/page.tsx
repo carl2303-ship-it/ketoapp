@@ -13,8 +13,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { FoodCombobox } from "@/components/food/food-combobox";
 import { WEEK_DAYS } from "@/lib/days";
-import { formatNum, scaleFood } from "@/lib/macros";
+import { formatNum, portionMacroLine, scaleFood } from "@/lib/macros";
 import { MEAL_LABELS, MEAL_TYPES, type MealType } from "@/lib/types";
 import { useKetoStore } from "@/store/keto-store";
 import { cn } from "@/lib/utils";
@@ -39,10 +40,6 @@ export default function PlanoPage() {
   const mealItems = useMemo(
     () => MEAL_TYPES.map((m) => ({ value: m, label: MEAL_LABELS[m] })),
     [],
-  );
-  const foodItems = useMemo(
-    () => foods.map((f) => ({ value: f.id, label: f.name })),
-    [foods],
   );
   const dayItems = useMemo(
     () => WEEK_DAYS.map((d) => ({ value: String(d.value), label: d.label })),
@@ -163,9 +160,7 @@ export default function PlanoPage() {
                       <p className="text-xs text-muted-foreground">
                         {MEAL_LABELS[plan.meal_type]} ·{" "}
                         {formatNum(plan.amount_grams)} g
-                        {macros
-                          ? ` · ${formatNum(macros.calories)} kcal · ${formatNum(macros.net_carbs_g, 1)} g NC`
-                          : null}
+                        {macros ? ` · ${portionMacroLine(macros)}` : null}
                       </p>
                     </div>
                     <Button
@@ -212,23 +207,14 @@ export default function PlanoPage() {
                   </Select>
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Alimento</Label>
-                  <Select
-                    items={foodItems}
-                    value={selectedFoodId || null}
-                    onValueChange={(v) => v && setFoodId(v)}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Escolher alimento" />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-72">
-                      {foods.map((f) => (
-                        <SelectItem key={f.id} value={f.id}>
-                          {f.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="plano-food-combobox">Alimento</Label>
+                  <FoodCombobox
+                    id="plano-food-combobox"
+                    foods={foods}
+                    value={selectedFoodId}
+                    onValueChange={setFoodId}
+                    placeholder="Escrever nome ou marca…"
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <Label>Porção (g)</Label>
