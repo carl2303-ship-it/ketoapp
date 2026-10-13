@@ -1,0 +1,13 @@
+# Next.js App Router on Netlify — runtime via @netlify/plugin-nextjs
+# Do NOT set publish to "public" or "out"; the OpenNext-based runtime uses ".next".
+
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "22"
+  NEXT_TELEMETRY_DISABLED = "1"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"

@@ -50,6 +50,21 @@ Ficheiro: `supabase/migrations/20260312173000_initial_schema.sql` — **já apli
 
 **Nota RLS:** alimentos globais leem-se sem login. Diário, plano e alimentos pessoais só sincronizam após «Entrar».
 
+## Deploy (Netlify)
+
+Config em `netlify.toml`:
+
+- `command = "npm run build"`
+- `publish = ".next"`
+- plugin `@netlify/plugin-nextjs` (runtime App Router)
+
+Variáveis no painel Netlify (Site → Environment variables):
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` (e/ou `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`)
+
+Site: https://ketogenic-app.netlify.app/
+
 ## Scripts
 
 - `npm run dev` — porto 4321
