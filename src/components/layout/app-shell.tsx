@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
+import { AuthDialog } from "@/components/auth/auth-dialog";
 import { useKetoStore } from "@/store/keto-store";
 import { Badge } from "@/components/ui/badge";
 
@@ -29,6 +30,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const usingMock = useKetoStore((s) => s.usingMock);
   const schemaMissing = useKetoStore((s) => s.schemaMissing);
   const supabaseReady = useKetoStore((s) => s.supabaseReady);
+  const authUserId = useKetoStore((s) => s.authUserId);
 
   return (
     <div className="relative min-h-dvh">
@@ -78,9 +80,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </Badge>
             ) : supabaseReady ? (
               <Badge className="bg-emerald-600 text-[10px] hover:bg-emerald-600">
-                Supabase
+                {authUserId ? "Supabase · sync" : "Supabase · foods"}
               </Badge>
             ) : null}
+            <AuthDialog />
             <ThemeToggle />
           </div>
         </div>
@@ -92,6 +95,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               supabase/migrations/20260312173000_initial_schema.sql
             </code>{" "}
             no SQL Editor do projeto.
+          </div>
+        ) : null}
+        {supabaseReady && !authUserId && !schemaMissing ? (
+          <div className="border-t border-emerald-500/20 bg-emerald-500/10 px-4 py-2 text-center text-xs text-emerald-900 dark:text-emerald-100">
+            Alimentos globais vindos do Supabase. Entra com a tua conta para
+            sincronizar diário, plano e alimentos pessoais (RLS).
           </div>
         ) : null}
       </header>
