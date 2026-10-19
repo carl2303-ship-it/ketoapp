@@ -1,3 +1,5 @@
+"use client";
+
 import type { Food } from "@/lib/types";
 import { hasSupabaseCredentials } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/client";

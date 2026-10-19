@@ -1,3 +1,5 @@
+"use client";
+
 import type { Food } from "@/lib/types";
 
 export const LOCAL_USER_ID = "local-demo-user";

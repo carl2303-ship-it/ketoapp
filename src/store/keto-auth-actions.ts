@@ -1,3 +1,5 @@
+"use client";
+
 import type { Food } from "@/lib/types";
 import { SEED_FOODS } from "@/lib/mock/seed-foods";
 import { hasSupabaseCredentials } from "@/lib/supabase/config";
