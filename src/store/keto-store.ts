@@ -1,1 +1,1 @@
-FILE_CONTENT_FROM_/workspace/src/store/keto-store.ts
+@/tmp/push_files_ascii.json
