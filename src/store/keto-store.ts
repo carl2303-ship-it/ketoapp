@@ -1,1 +1,89 @@
-PLACEHOLDER_WILL_FAIL
+"use client";
+
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
+import { SEED_FOODS } from "@/lib/mock/seed-foods";
+import { hasSupabaseCredentials } from "@/lib/supabase/config";
+import { mergeFoodLists } from "@/store/food-merge";
+import { createAuthActions } from "@/store/keto-auth-actions";
+import { createFoodActions } from "@/store/keto-food-actions";
+import { createMealActions } from "@/store/keto-meal-actions";
+import { createPlanActions } from "@/store/keto-plan-actions";
+import { defaultProfile } from "@/store/keto-profile";
+import type { KetoState } from "@/store/keto-state";
+
+export type { KetoState } from "@/store/keto-state";
+export { migrateLegacyKetoPersist } from "@/store/persist-migrate";
+
+export const useKetoStore = create<KetoState>()(
+  persist(
+    (set, get) => ({
+      hydrated: false,
+      usingMock: !hasSupabaseCredentials(),
+      supabaseReady: null,
+      schemaMissing: false,
+      authUserId: null,
+      authEmail: null,
+      authError: null,
+      profile: defaultProfile,
+      foods: SEED_FOODS,
+      dailyLogs: [],
+      mealEntries: [],
+      weeklyPlans: [],
+      // Placeholder estável SSR/cliente — StoreBootstrap põe o dia real após rehydrate.
+      selectedDate: "2020-01-01",
+      searchQuery: "",
+      categoryFilter: "all",
+
+      setHydrated: (v) => set({ hydrated: v }),
+      setSelectedDate: (date) => set({ selectedDate: date }),
+      setSearchQuery: (q) => set({ searchQuery: q }),
+      setCategoryFilter: (c) => set({ categoryFilter: c }),
+
+      ...createAuthActions(set, get),
+      ...createMealActions(set, get),
+      ...createFoodActions(set, get),
+      ...createPlanActions(set, get),
+
+      getLogForDate: (date) => {
+        const d = date ?? get().selectedDate;
+        return get().dailyLogs.find((l) => l.date === d);
+      },
+
+      getEntriesForDate: (date) => {
+        const d = date ?? get().selectedDate;
+        const log = get().dailyLogs.find((l) => l.date === d);
+        if (!log) return [];
+        return get().mealEntries.filter((e) => e.daily_log_id === log.id);
+      },
+
+      getPlansForDay: (day) =>
+        get().weeklyPlans.filter((p) => p.day_of_week === day),
+    }),
+    {
+      name: "ketotrack-v4",
+      // Next.js SSR: nunca rehidratar durante o paint inicial (evita #418 + flash).
+      skipHydration: true,
+      partialize: (s) => ({
+        profile: s.profile,
+        // Persistir só pessoais — categorias novas vivem nestes alimentos.
+        foods: s.foods.filter((f) => f && !f.is_global),
+        dailyLogs: s.dailyLogs,
+        mealEntries: s.mealEntries,
+        weeklyPlans: s.weeklyPlans,
+        selectedDate: s.selectedDate,
+      }),
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<KetoState>;
+        const personal = (p.foods ?? []).filter((f) => f && !f.is_global);
+        return {
+          ...current,
+          ...p,
+          // Sempre partir do seed/remoto actual + pessoais persistidos.
+          foods: mergeFoodLists(current.foods, personal),
+          hydrated: false,
+        };
+      },
+    },
+  ),
+);
