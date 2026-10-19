@@ -108,7 +108,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </header>
 
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 pb-24 md:pb-8">
-        {children}
+        {hydrated ? (
+          children
+        ) : (
+          <div
+            className="flex min-h-[40vh] flex-col items-center justify-center gap-2 text-muted-foreground"
+            aria-busy
+            aria-live="polite"
+          >
+            <p className="font-heading text-lg text-foreground">KetoTrack</p>
+            <p className="text-sm">A carregar a tua biblioteca…</p>
+          </div>
+        )}
       </main>
 
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border/60 bg-background/90 backdrop-blur-md md:hidden">

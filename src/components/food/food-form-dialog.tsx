@@ -115,10 +115,7 @@ export function FoodFormDialog({
           setError(result.error ?? "Não foi possível guardar.");
           return;
         }
-        if (result.warning) {
-          // Fecha na mesma — o alimento ficou na lista local persistida.
-          setError(result.warning);
-        }
+        // Aviso de sync (modo local / sem login) — o item já está na lista + localStorage.
       }
       if (!isEdit) setForm(empty);
       setOpen(false);
