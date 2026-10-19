@@ -23,7 +23,9 @@ export const metadata: Metadata = {
     "Diário cetogénico, macros, net carbs e planeamento alimentar para performance.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({
+  children,
+}: Readonly<{ children: React.ReactNode }>) {
   return (
     <html
       lang="pt"
