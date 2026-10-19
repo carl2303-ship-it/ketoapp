@@ -1,14 +1,20 @@
 "use client";
 
+import { useSyncExternalStore } from "react";
 import { addDays, format, parseISO } from "date-fns";
 import { pt } from "date-fns/locale";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useKetoStore } from "@/store/keto-store";
 
+const emptySubscribe = () => () => {};
+
 export function DateNav() {
   const selectedDate = useKetoStore((s) => s.selectedDate);
   const setSelectedDate = useKetoStore((s) => s.setSelectedDate);
+  // false no SSR / 1º paint; true no cliente — evita React #418 no texto da data.
+  const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
+
   const date = parseISO(selectedDate);
 
   return (
@@ -25,9 +31,15 @@ export function DateNav() {
       </Button>
       <div className="text-center">
         <p className="font-heading text-lg font-semibold capitalize">
-          {format(date, "EEEE, d MMMM", { locale: pt })}
+          {mounted ? (
+            format(date, "EEEE, d MMMM", { locale: pt })
+          ) : (
+            <span suppressHydrationWarning>{selectedDate}</span>
+          )}
         </p>
-        <p className="text-xs text-muted-foreground">{selectedDate}</p>
+        <p className="text-xs text-muted-foreground" suppressHydrationWarning>
+          {selectedDate}
+        </p>
       </div>
       <Button
         variant="outline"

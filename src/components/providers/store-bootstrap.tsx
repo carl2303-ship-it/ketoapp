@@ -1,16 +1,26 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useKetoStore } from "@/store/keto-store";
 
 export function StoreBootstrap() {
   const initRemote = useKetoStore((s) => s.initRemote);
+  const started = useRef(false);
 
   useEffect(() => {
-    // Mark client as ready even if persist rehydrate is slow/empty.
+    if (started.current) return;
+    started.current = true;
     useKetoStore.setState({ hydrated: true });
-    void useKetoStore.persist.rehydrate();
-    void initRemote();
+
+    const run = async () => {
+      try {
+        await Promise.resolve(useKetoStore.persist.rehydrate());
+      } catch {
+        // ignore rehydrate errors
+      }
+      await initRemote();
+    };
+    void run();
   }, [initRemote]);
 
   return null;
