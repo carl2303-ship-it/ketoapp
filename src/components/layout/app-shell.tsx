@@ -27,6 +27,7 @@ const NAV = [
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const hydrated = useKetoStore((s) => s.hydrated);
   const usingMock = useKetoStore((s) => s.usingMock);
   const schemaMissing = useKetoStore((s) => s.schemaMissing);
   const supabaseReady = useKetoStore((s) => s.supabaseReady);
@@ -74,11 +75,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </nav>
 
           <div className="flex items-center gap-2">
-            {usingMock ? (
+            {/* Evita mismatch de hidratação (#418) no badge server vs client */}
+            {hydrated && usingMock ? (
               <Badge variant="secondary" className="max-w-[9rem] truncate text-[10px] sm:max-w-none">
                 {schemaMissing ? "Mock · schema em falta" : "Modo mock"}
               </Badge>
-            ) : supabaseReady ? (
+            ) : hydrated && supabaseReady ? (
               <Badge className="bg-emerald-600 text-[10px] hover:bg-emerald-600">
                 {authUserId ? "Supabase · sync" : "Supabase · foods"}
               </Badge>
