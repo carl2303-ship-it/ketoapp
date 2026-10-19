@@ -82,10 +82,11 @@ export default function AlimentosPage() {
           </h1>
           <p className="text-muted-foreground">
             Biblioteca global e pessoais. Valores por 100 g — NC = HT − fibras −
-            polióis.
+            polióis. Podes editar ou apagar qualquer item: editar um global cria
+            uma cópia pessoal; apagar um global só o esconde neste dispositivo.
             {!usingMock
-              ? " Globais são só de leitura; pessoais ficam neste dispositivo e sincronizam se estiveres autenticado."
-              : " Em modo local os teus alimentos e categorias novas ficam guardados neste browser."}
+              ? " Pessoais sincronizam com o Supabase se estiveres autenticado."
+              : " Em modo local tudo fica guardado neste browser."}
           </p>
         </div>
         <AddFoodDialog />
@@ -199,11 +200,7 @@ export default function AlimentosPage() {
                         <span className="hidden sm:inline">Apagar</span>
                       </Button>
                     </>
-                  ) : (
-                    <span className="text-[10px] text-muted-foreground">
-                      Só leitura
-                    </span>
-                  )}
+                  ) : null}
                 </div>
               </li>
             );
@@ -230,7 +227,10 @@ export default function AlimentosPage() {
               <span className="font-medium text-foreground">
                 {deleteTarget?.name}
               </span>
-              . Esta acção não pode ser desfeita.
+              .
+              {deleteTarget?.is_global
+                ? " Como é um alimento global, só desaparece neste dispositivo (o catálogo remoto mantém-se)."
+                : " Esta acção não pode ser desfeita."}
             </p>
             {deleteError ? (
               <p className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">

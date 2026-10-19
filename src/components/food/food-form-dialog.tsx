@@ -164,7 +164,11 @@ export function FoodFormDialog({
       <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>
-            {isEdit ? "Editar alimento" : "Adicionar alimento"}
+            {isEdit
+              ? food?.is_global
+                ? "Personalizar alimento (cria cópia pessoal)"
+                : "Editar alimento"
+              : "Adicionar alimento"}
           </DialogTitle>
         </DialogHeader>
         <form onSubmit={onSubmit} className="grid gap-3 sm:grid-cols-2">

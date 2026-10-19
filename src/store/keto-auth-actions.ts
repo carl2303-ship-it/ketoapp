@@ -34,12 +34,19 @@ export function createAuthActions(set: KetoSet, get: KetoGet) {
         return mergeFoodLists(fromState, fromStorage);
       };
 
+      const applyFoods = (base: Food[]) => {
+        const hidden = new Set(get().hiddenGlobalIds);
+        return mergeFoodLists(base, personalSnapshot()).filter(
+          (f) => !hidden.has(f.id),
+        );
+      };
+
       if (!hasSupabaseCredentials()) {
         set({
           usingMock: true,
           supabaseReady: false,
           schemaMissing: false,
-          foods: mergeFoodLists(SEED_FOODS, personalSnapshot()),
+          foods: applyFoods(SEED_FOODS),
         });
         return;
       }
@@ -60,7 +67,7 @@ export function createAuthActions(set: KetoSet, get: KetoGet) {
             usingMock: true,
             supabaseReady: false,
             schemaMissing: missing,
-            foods: mergeFoodLists(SEED_FOODS, personalSnapshot()),
+            foods: applyFoods(SEED_FOODS),
           });
           return;
         }
@@ -73,7 +80,7 @@ export function createAuthActions(set: KetoSet, get: KetoGet) {
           usingMock: false,
           supabaseReady: true,
           schemaMissing: false,
-          foods: mergeFoodLists(base, personalSnapshot()),
+          foods: applyFoods(base),
         });
 
         const { data: auth } = await supabase.auth.getUser();
@@ -86,7 +93,7 @@ export function createAuthActions(set: KetoSet, get: KetoGet) {
         set({
           usingMock: true,
           supabaseReady: false,
-          foods: mergeFoodLists(SEED_FOODS, personalSnapshot()),
+          foods: applyFoods(SEED_FOODS),
         });
       }
     },
