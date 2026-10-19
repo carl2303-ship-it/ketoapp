@@ -1,27 +1,52 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { useKetoStore } from "@/store/keto-store";
+import { format } from "date-fns";
+import {
+  migrateLegacyKetoPersist,
+  useKetoStore,
+} from "@/store/keto-store";
 
+/**
+ * Ordem crítica (evita flash + React #418):
+ * 1) Migrar localStorage legado
+ * 2) rehydrate (skipHydration) — traz alimentos pessoais
+ * 3) initRemote — merge com seed/Supabase sem wipe
+ * 4) só depois hydrated=true — UI deixa de mostrar skeleton
+ */
 export function StoreBootstrap() {
-  const initRemote = useKetoStore((s) => s.initRemote);
   const started = useRef(false);
 
   useEffect(() => {
     if (started.current) return;
     started.current = true;
-    useKetoStore.setState({ hydrated: true });
 
     const run = async () => {
+      migrateLegacyKetoPersist();
       try {
-        await Promise.resolve(useKetoStore.persist.rehydrate());
+        await useKetoStore.persist.rehydrate();
       } catch {
-        // ignore rehydrate errors
+        // ignore rehydrate errors — continua com seed
       }
-      await initRemote();
+
+      const selectedDate = useKetoStore.getState().selectedDate;
+      if (!selectedDate || selectedDate === "2020-01-01") {
+        useKetoStore.setState({
+          selectedDate: format(new Date(), "yyyy-MM-dd"),
+        });
+      }
+
+      try {
+        await useKetoStore.getState().initRemote();
+      } catch {
+        // initRemote já faz fallback mock internamente
+      }
+
+      useKetoStore.setState({ hydrated: true });
     };
+
     void run();
-  }, [initRemote]);
+  }, []);
 
   return null;
 }
