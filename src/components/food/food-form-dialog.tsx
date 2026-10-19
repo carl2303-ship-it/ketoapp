@@ -110,7 +110,15 @@ export function FoodFormDialog({
           return;
         }
       } else {
-        await addFood(payload);
+        const result = await addFood(payload);
+        if (!result.ok) {
+          setError(result.error ?? "Não foi possível guardar.");
+          return;
+        }
+        if (result.warning) {
+          // Fecha na mesma — o alimento ficou na lista local persistida.
+          setError(result.warning);
+        }
       }
       if (!isEdit) setForm(empty);
       setOpen(false);
