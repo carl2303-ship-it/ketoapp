@@ -3,9 +3,15 @@
 import type { Food } from "@/lib/types";
 import { hasSupabaseCredentials } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/client";
-import { isLocalFoodId, LOCAL_USER_ID, mergeFoodLists } from "@/store/food-merge";
+import { mergeFoodLists } from "@/store/food-merge";
 import { uid } from "@/store/keto-profile";
 import type { KetoGet, KetoSet } from "@/store/keto-state";
+
+function withoutHidden(foods: Food[], hidden: string[]): Food[] {
+  if (!hidden.length) return foods;
+  const set = new Set(hidden);
+  return foods.filter((f) => !set.has(f.id));
+}
 
 export function createFoodActions(set: KetoSet, get: KetoGet) {
   return {
@@ -66,17 +72,8 @@ export function createFoodActions(set: KetoSet, get: KetoGet) {
       };
     },
 
-    canMutateFood: (food: Food) => {
-      const state = get();
-      if (state.usingMock || !state.supabaseReady) return true;
-      if (food.is_global) return false;
-      // Pessoais só locais (ainda sem UUID remoto) ou do dono.
-      if (isLocalFoodId(food.id) || food.user_id === LOCAL_USER_ID) {
-        return true;
-      }
-      if (!state.authUserId) return false;
-      return food.user_id === state.authUserId;
-    },
+    /** Qualquer alimento na lista pode ser editado/apagado neste dispositivo. */
+    canMutateFood: (_food: Food) => true,
 
     updateFood: async (
       id: string,
@@ -86,12 +83,71 @@ export function createFoodActions(set: KetoSet, get: KetoGet) {
       if (!existing) {
         return { ok: false, error: "Alimento não encontrado." };
       }
-      if (!get().canMutateFood(existing)) {
-        return {
-          ok: false,
-          error:
-            "Alimentos globais são só de leitura. Cria um alimento pessoal para o personalizar.",
+
+      // Global: criar cópia pessoal e ocultar o original (não altera o remoto).
+      if (existing.is_global) {
+        const local: Food = {
+          ...existing,
+          ...food,
+          id: uid("food"),
+          user_id: get().authUserId ?? get().profile.id,
+          is_global: false,
         };
+        set((s) => {
+          const hidden = Array.from(
+            new Set([...s.hiddenGlobalIds, existing.id]),
+          );
+          return {
+            hiddenGlobalIds: hidden,
+            foods: withoutHidden(
+              mergeFoodLists(
+                s.foods.filter((f) => f.id !== existing.id),
+                [local],
+              ),
+              hidden,
+            ),
+            mealEntries: s.mealEntries.map((e) =>
+              e.food_id === existing.id ? { ...e, food_id: local.id } : e,
+            ),
+            weeklyPlans: s.weeklyPlans.map((p) =>
+              p.food_id === existing.id ? { ...p, food_id: local.id } : p,
+            ),
+          };
+        });
+
+        if (
+          get().supabaseReady &&
+          get().authUserId &&
+          hasSupabaseCredentials()
+        ) {
+          try {
+            const supabase = createClient();
+            const { data, error } = await supabase
+              .from("foods")
+              .insert({
+                ...food,
+                user_id: get().authUserId,
+                is_global: false,
+              })
+              .select()
+              .single();
+            if (!error && data) {
+              const remote = data as Food;
+              set((s) => ({
+                foods: s.foods.map((f) => (f.id === local.id ? remote : f)),
+                mealEntries: s.mealEntries.map((e) =>
+                  e.food_id === local.id ? { ...e, food_id: remote.id } : e,
+                ),
+                weeklyPlans: s.weeklyPlans.map((p) =>
+                  p.food_id === local.id ? { ...p, food_id: remote.id } : p,
+                ),
+              }));
+            }
+          } catch {
+            // mantém cópia local
+          }
+        }
+        return { ok: true };
       }
 
       set((s) => ({
@@ -144,13 +200,6 @@ export function createFoodActions(set: KetoSet, get: KetoGet) {
       if (!existing) {
         return { ok: false, error: "Alimento não encontrado." };
       }
-      if (!get().canMutateFood(existing)) {
-        return {
-          ok: false,
-          error:
-            "Alimentos globais são só de leitura e não podem ser apagados.",
-        };
-      }
 
       const mealCount = get().mealEntries.filter((e) => e.food_id === id)
         .length;
@@ -174,11 +223,22 @@ export function createFoodActions(set: KetoSet, get: KetoGet) {
         };
       }
 
+      // Global: só esconder neste dispositivo (RLS não deixa apagar seed remoto).
+      if (existing.is_global) {
+        set((s) => {
+          const hidden = Array.from(new Set([...s.hiddenGlobalIds, id]));
+          return {
+            hiddenGlobalIds: hidden,
+            foods: s.foods.filter((f) => f.id !== id),
+          };
+        });
+        return { ok: true };
+      }
+
       if (
         get().supabaseReady &&
         get().authUserId &&
-        hasSupabaseCredentials() &&
-        !existing.is_global
+        hasSupabaseCredentials()
       ) {
         try {
           const supabase = createClient();
@@ -188,7 +248,6 @@ export function createFoodActions(set: KetoSet, get: KetoGet) {
             .eq("id", id)
             .eq("user_id", get().authUserId);
           if (error) {
-            // recipe_items ON DELETE RESTRICT, etc.
             return {
               ok: false,
               error:

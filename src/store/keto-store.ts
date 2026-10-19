@@ -26,6 +26,7 @@ export const useKetoStore = create<KetoState>()(
       authError: null,
       profile: defaultProfile,
       foods: SEED_FOODS,
+      hiddenGlobalIds: [],
       dailyLogs: [],
       mealEntries: [],
       weeklyPlans: [],
@@ -67,6 +68,7 @@ export const useKetoStore = create<KetoState>()(
         profile: s.profile,
         // Persistir só pessoais — categorias novas vivem nestes alimentos.
         foods: s.foods.filter((f) => f && !f.is_global),
+        hiddenGlobalIds: s.hiddenGlobalIds,
         dailyLogs: s.dailyLogs,
         mealEntries: s.mealEntries,
         weeklyPlans: s.weeklyPlans,
@@ -75,11 +77,15 @@ export const useKetoStore = create<KetoState>()(
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<KetoState>;
         const personal = (p.foods ?? []).filter((f) => f && !f.is_global);
+        const hidden = p.hiddenGlobalIds ?? [];
         return {
           ...current,
           ...p,
-          // Sempre partir do seed/remoto actual + pessoais persistidos.
-          foods: mergeFoodLists(current.foods, personal),
+          hiddenGlobalIds: hidden,
+          // Sempre partir do seed/remoto actual + pessoais; respeita globais ocultos.
+          foods: mergeFoodLists(current.foods, personal).filter(
+            (f) => !hidden.includes(f.id),
+          ),
           hydrated: false,
         };
       },
