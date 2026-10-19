@@ -13,7 +13,6 @@ import { defaultProfile } from "@/store/keto-profile";
 import type { KetoState } from "@/store/keto-state";
 
 export type { KetoState } from "@/store/keto-state";
-export { migrateLegacyKetoPersist } from "@/store/persist-migrate";
 
 export const useKetoStore = create<KetoState>()(
   persist(

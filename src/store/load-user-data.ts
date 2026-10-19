@@ -1,3 +1,5 @@
+"use client";
+
 import type { DailyLog, MealEntry, Profile, WeeklyPlan } from "@/lib/types";
 import { createClient } from "@/lib/supabase/client";
 import { defaultProfile } from "@/store/keto-profile";

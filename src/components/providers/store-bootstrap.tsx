@@ -2,10 +2,8 @@
 
 import { useEffect, useRef } from "react";
 import { format } from "date-fns";
-import {
-  migrateLegacyKetoPersist,
-  useKetoStore,
-} from "@/store/keto-store";
+import { useKetoStore } from "@/store/keto-store";
+import { migrateLegacyKetoPersist } from "@/store/persist-migrate";
 
 /**
  * Ordem crítica (evita flash + React #418):

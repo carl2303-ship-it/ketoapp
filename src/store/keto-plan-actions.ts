@@ -1,3 +1,5 @@
+"use client";
+
 import type { MealType, WeeklyPlan } from "@/lib/types";
 import { hasSupabaseCredentials } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/client";

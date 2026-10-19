@@ -1,3 +1,5 @@
+"use client";
+
 import type { Profile } from "@/lib/types";
 import { LOCAL_USER_ID } from "@/store/food-merge";
 

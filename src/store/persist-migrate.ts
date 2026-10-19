@@ -1,3 +1,5 @@
+"use client";
+
 const LEGACY_PERSIST_KEYS = ["ketotrack-v3", "ketotrack-v2"] as const;
 
 /** Copia estado de chaves antigas para v4 (uma vez) antes do rehydrate. */
