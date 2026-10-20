@@ -12,14 +12,24 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { formatNum, netCarbs } from "@/lib/macros";
 import type { Food } from "@/lib/types";
 import { useKetoStore } from "@/store/keto-store";
 
+const NEW_CATEGORY_VALUE = "__new__";
+const DEFAULT_CATEGORY = "Personalizado";
+
 const empty = {
   name: "",
   brand: "",
-  category: "Personalizado",
+  category: DEFAULT_CATEGORY,
   calories: "",
   fat_g: "",
   protein_g: "",
@@ -36,7 +46,7 @@ function foodToForm(food: Food): typeof empty {
   return {
     name: food.name,
     brand: food.brand ?? "",
-    category: food.category ?? "Personalizado",
+    category: food.category ?? DEFAULT_CATEGORY,
     calories: String(food.calories),
     fat_g: String(food.fat_g),
     protein_g: String(food.protein_g),
@@ -63,19 +73,55 @@ export function FoodFormDialog({
   onOpenChange,
   showCreateTrigger = false,
 }: FoodFormDialogProps) {
+  const foods = useKetoStore((s) => s.foods);
   const addFood = useKetoStore((s) => s.addFood);
   const updateFood = useKetoStore((s) => s.updateFood);
   const isEdit = Boolean(food);
   const [internalOpen, setInternalOpen] = useState(false);
   const open = openProp ?? internalOpen;
   const [form, setForm] = useState(() => (food ? foodToForm(food) : empty));
+  const [customCategory, setCustomCategory] = useState("");
+  const [useNewCategory, setUseNewCategory] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+
+  const categoryOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const f of foods) {
+      if (f.category?.trim()) set.add(f.category.trim());
+    }
+    set.add(DEFAULT_CATEGORY);
+    if (food?.category?.trim()) set.add(food.category.trim());
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "pt"));
+  }, [foods, food]);
+
+  const categoryItems = useMemo(
+    () => [
+      ...categoryOptions.map((c) => ({ value: c, label: c })),
+      { value: NEW_CATEGORY_VALUE, label: "Nova categoria…" },
+    ],
+    [categoryOptions],
+  );
 
   function setOpen(next: boolean) {
     if (next) {
       setError(null);
-      setForm(food ? foodToForm(food) : empty);
+      const nextForm = food ? foodToForm(food) : { ...empty };
+      // Lista actual de categorias (inclui a do alimento em edição).
+      const known = new Set(
+        foods
+          .map((f) => f.category?.trim())
+          .filter((c): c is string => Boolean(c)),
+      );
+      known.add(DEFAULT_CATEGORY);
+      if (nextForm.category && !known.has(nextForm.category)) {
+        setUseNewCategory(true);
+        setCustomCategory(nextForm.category);
+      } else {
+        setUseNewCategory(false);
+        setCustomCategory("");
+      }
+      setForm(nextForm);
     }
     (onOpenChange ?? setInternalOpen)(next);
   }
@@ -84,13 +130,36 @@ export function FoodFormDialog({
     setForm((f) => ({ ...f, [key]: value }));
   }
 
+  function onCategorySelect(value: string | null) {
+    if (!value) return;
+    if (value === NEW_CATEGORY_VALUE) {
+      setUseNewCategory(true);
+      setCustomCategory("");
+      set("category", "");
+      return;
+    }
+    setUseNewCategory(false);
+    setCustomCategory("");
+    set("category", value);
+  }
+
+  function resolvedCategory(): string {
+    if (useNewCategory) return customCategory.trim();
+    return form.category.trim();
+  }
+
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    const category = resolvedCategory();
+    if (!category) {
+      setError("Escolhe ou escreve uma categoria.");
+      return;
+    }
     const payload = {
       name: form.name.trim(),
       brand: form.brand.trim() || null,
-      category: form.category.trim() || null,
+      category,
       calories: Number(form.calories) || 0,
       fat_g: Number(form.fat_g) || 0,
       protein_g: Number(form.protein_g) || 0,
@@ -115,21 +184,17 @@ export function FoodFormDialog({
           setError(result.error ?? "Não foi possível guardar.");
           return;
         }
-        // Aviso de sync (modo local / sem login) — o item já está na lista + localStorage.
       }
       if (!isEdit) setForm(empty);
       setOpen(false);
     });
   }
 
-  const fields: Array<{
+  const macroFields: Array<{
     key: keyof typeof empty;
     label: string;
     step?: string;
   }> = [
-    { key: "name", label: "Nome" },
-    { key: "brand", label: "Marca" },
-    { key: "category", label: "Categoria" },
     { key: "calories", label: "kcal / 100g", step: "0.1" },
     { key: "fat_g", label: "Gordura (g)", step: "0.1" },
     { key: "protein_g", label: "Proteína (g)", step: "0.1" },
@@ -148,6 +213,8 @@ export function FoodFormDialog({
       }),
     [form.carbs_total_g, form.fiber_g, form.polyols_g],
   );
+
+  const selectValue = useNewCategory ? NEW_CATEGORY_VALUE : form.category;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -172,29 +239,73 @@ export function FoodFormDialog({
           </DialogTitle>
         </DialogHeader>
         <form onSubmit={onSubmit} className="grid gap-3 sm:grid-cols-2">
-          {fields.map((field) => (
-            <div
-              key={field.key}
-              className={
-                field.key === "name" ||
-                field.key === "brand" ||
-                field.key === "category"
-                  ? "space-y-1.5 sm:col-span-2"
-                  : "space-y-1.5"
-              }
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label htmlFor="food-name">Nome</Label>
+            <Input
+              id="food-name"
+              required
+              value={form.name}
+              onChange={(e) => set("name", e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label htmlFor="food-brand">Marca</Label>
+            <Input
+              id="food-brand"
+              value={form.brand}
+              onChange={(e) => set("brand", e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label>Categoria</Label>
+            <Select
+              items={categoryItems}
+              value={selectValue}
+              onValueChange={onCategorySelect}
             >
+              <SelectTrigger className="w-full" id="food-category">
+                <SelectValue placeholder="Escolher categoria" />
+              </SelectTrigger>
+              <SelectContent>
+                {categoryOptions.map((c) => (
+                  <SelectItem key={c} value={c}>
+                    {c}
+                  </SelectItem>
+                ))}
+                <SelectItem value={NEW_CATEGORY_VALUE}>
+                  Nova categoria…
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            {useNewCategory ? (
+              <Input
+                className="mt-2"
+                id="food-category-new"
+                placeholder="Nome da nova categoria"
+                value={customCategory}
+                onChange={(e) => setCustomCategory(e.target.value)}
+                required
+                autoFocus
+              />
+            ) : null}
+          </div>
+
+          {macroFields.map((field) => (
+            <div key={field.key} className="space-y-1.5">
               <Label htmlFor={`food-${field.key}`}>{field.label}</Label>
               <Input
                 id={`food-${field.key}`}
-                required={field.key === "name"}
-                type={field.step ? "number" : "text"}
+                type="number"
                 step={field.step}
-                min={field.step ? 0 : undefined}
+                min={0}
                 value={form[field.key]}
                 onChange={(e) => set(field.key, e.target.value)}
               />
             </div>
           ))}
+
           <p className="rounded-lg bg-emerald-500/10 px-3 py-2 text-xs text-muted-foreground sm:col-span-2">
             Net carbs / 100 g:{" "}
             <span className="font-medium text-foreground tabular-nums">
