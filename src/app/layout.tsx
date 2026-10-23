@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Outfit, Source_Sans_3 } from "next/font/google";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { StoreBootstrap } from "@/components/providers/store-bootstrap";
@@ -21,6 +21,28 @@ export const metadata: Metadata = {
   title: "KetoTrack & Plan",
   description:
     "Diário cetogénico, macros, net carbs e planeamento alimentar para performance.",
+  applicationName: "KetoTrack",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "KetoTrack",
+  },
+  formatDetection: {
+    telephone: false,
+  },
+  other: {
+    "mobile-web-app-capable": "yes",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#059669" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a1210" },
+  ],
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

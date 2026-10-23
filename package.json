@@ -3,6 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "prebuild": "node scripts/generate-pwa-icons.mjs",
+    "icons": "node scripts/generate-pwa-icons.mjs",
     "dev": "next dev --port 4321",
     "build": "next build",
     "start": "next start",
