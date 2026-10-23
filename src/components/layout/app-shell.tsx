@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
+import { InstallAppButton } from "@/components/layout/install-app-button";
 import { AuthDialog } from "@/components/auth/auth-dialog";
 import { useKetoStore } from "@/store/keto-store";
 import { Badge } from "@/components/ui/badge";
@@ -85,6 +86,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 {authUserId ? "Supabase · sync" : "Supabase · foods"}
               </Badge>
             ) : null}
+            <InstallAppButton />
             <AuthDialog />
             <ThemeToggle />
           </div>

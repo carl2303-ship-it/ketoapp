@@ -65,6 +65,18 @@ Variáveis no painel Netlify (Site → Environment variables):
 
 Site: https://ketogenic-app.netlify.app/
 
+## Instalar no telemóvel (PWA)
+
+A app é uma Progressive Web App — não vai à App Store / Play Store.
+
+1. Abre https://ketogenic-app.netlify.app/ no browser (Safari no iPhone; Chrome no Android).
+2. Toca em **Instalar** no topo da app, ou:
+   - **iPhone:** Partilhar → Adicionar ao ecrã principal
+   - **Android:** menu ⋮ → Instalar aplicação / Adicionar ao ecrã principal
+3. Abre o ícone KetoTrack no ecrã principal (modo standalone).
+
+Requisitos: HTTPS (Netlify já tem), manifesto + ícones + service worker (`/sw.js`).
+
 ## Scripts
 
 - `npm run dev` — porto 4321
