@@ -22,7 +22,10 @@ export function createFoodActions(set: KetoSet, get: KetoGet) {
         user_id: get().authUserId ?? get().profile.id,
         is_global: false,
       };
-      set((s) => ({ foods: mergeFoodLists(s.foods, [local]) }));
+      // Merge imediato — Dashboard / Diário / Plano vêem o alimento já.
+      set((s) => ({
+        foods: mergeFoodLists(s.foods, [local]),
+      }));
 
       if (get().supabaseReady && get().authUserId && hasSupabaseCredentials()) {
         try {
