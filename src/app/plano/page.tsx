@@ -212,15 +212,14 @@ export default function PlanoPage() {
                 <div className="space-y-1.5">
                   <Label htmlFor="plano-food-combobox">Alimento</Label>
                   <FoodCombobox
-                    key={`plano-foods-${foods.length}-${foods.find((f) => !f.is_global)?.id ?? "g"}`}
                     id="plano-food-combobox"
-                    foods={foods}
                     value={selectedFoodId}
                     onValueChange={setFoodId}
                     placeholder="Escrever nome ou marca…"
                   />
                   <p className="text-[11px] text-muted-foreground">
                     {foods.filter((f) => !f.is_global).length} pessoais na lista
+                    (Zustand)
                   </p>
                 </div>
                 <div className="space-y-1.5">
