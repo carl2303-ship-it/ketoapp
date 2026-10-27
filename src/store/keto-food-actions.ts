@@ -52,36 +52,52 @@ export function createFoodActions(set: KetoSet, get: KetoGet) {
               get,
               get().foods.map((f) => (f.id === local.id ? remote : f)),
             );
+            set({
+              syncStatus: {
+                type: "ok",
+                message: `"${remote.name}" sincronizado com a nuvem.`,
+              },
+            });
             return { ok: true, synced: true, foodId: remote.id };
           }
+          const warning =
+            error?.message ||
+            "Guardado neste dispositivo; sync Supabase falhou.";
+          set({ syncStatus: { type: "error", message: warning } });
           return {
             ok: true,
             synced: false,
             foodId: local.id,
-            warning:
-              error?.message ||
-              "Guardado neste dispositivo; sync Supabase falhou.",
+            warning,
           };
         } catch (e) {
+          const warning =
+            e instanceof Error
+              ? e.message
+              : "Guardado neste dispositivo; sync Supabase falhou.";
+          set({ syncStatus: { type: "error", message: warning } });
           return {
             ok: true,
             synced: false,
             foodId: local.id,
-            warning:
-              e instanceof Error
-                ? e.message
-                : "Guardado neste dispositivo; sync Supabase falhou.",
+            warning,
           };
         }
       }
 
+      const warning = get().supabaseReady
+        ? "Guardado neste dispositivo. Entra na conta para sincronizar entre telemóvel e PC."
+        : "Guardado neste dispositivo (modo local).";
+      if (get().supabaseReady && !get().authUserId) {
+        set({
+          syncStatus: { type: "info", message: warning },
+        });
+      }
       return {
         ok: true,
         synced: false,
         foodId: local.id,
-        warning: get().supabaseReady
-          ? "Guardado neste dispositivo. Entra na conta para sincronizar com o Supabase."
-          : "Guardado neste dispositivo (modo local).",
+        warning,
       };
     },
 

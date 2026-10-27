@@ -21,28 +21,93 @@ async function afterAuth(
   get: KetoGet,
   userId: string,
   email: string | null,
+  options?: { quiet?: boolean },
 ) {
-  // 1) Sobe dados locais (alimentos / diário / plano) e remapeia IDs.
+  const quiet = options?.quiet ?? false;
+  set({ syncing: true });
   try {
-    await syncLocalDataToRemote(set, get, userId);
-  } catch {
-    // Continua — loadUserData ainda traz o que já está na BD.
+    // 1) Sobe dados locais (alimentos / diário / plano) e remapeia IDs.
+    let uploaded = { foodsSynced: 0, mealsSynced: 0, plansSynced: 0 };
+    try {
+      uploaded = await syncLocalDataToRemote(set, get, userId);
+    } catch (e) {
+      const msg =
+        e instanceof Error
+          ? e.message
+          : "Falha ao enviar dados locais para o Supabase.";
+      set({
+        syncStatus: {
+          type: "error",
+          message: `Sync parcial: ${msg}`,
+        },
+      });
+    }
+
+    // 2) Perfil + diário + plano remotos.
+    await loadUserData(set, get, userId, email);
+
+    // 3) Preservar quaisquer pessoais locais que ainda não sincronizaram.
+    set((s) => ({
+      foods: mergeFoodLists(s.foods, readPersistedPersonalFoods()),
+      foodsEpoch: s.foodsEpoch + 1,
+      authDialogOpen: false,
+      syncing: false,
+      lastSyncedAt: new Date().toISOString(),
+      syncStatus: quiet
+        ? s.syncStatus?.type === "error"
+          ? s.syncStatus
+          : null
+        : {
+            type: "ok",
+            message:
+              uploaded.foodsSynced + uploaded.mealsSynced + uploaded.plansSynced >
+              0
+                ? `Sincronizado: ${uploaded.foodsSynced} alimento(s), ${uploaded.mealsSynced} refeição(ões), ${uploaded.plansSynced} plano(s) enviados.`
+                : "Dados sincronizados com o Supabase.",
+          },
+    }));
+  } catch (e) {
+    set({
+      syncing: false,
+      syncStatus: {
+        type: "error",
+        message:
+          e instanceof Error
+            ? `Falha na sincronização: ${e.message}`
+            : "Falha na sincronização com o Supabase.",
+      },
+    });
   }
-
-  // 2) Perfil + diário + plano remotos.
-  await loadUserData(set, get, userId, email);
-
-  // 3) Preservar quaisquer pessoais locais que ainda não sincronizaram.
-  set((s) => ({
-    foods: mergeFoodLists(s.foods, readPersistedPersonalFoods()),
-    foodsEpoch: s.foodsEpoch + 1,
-    authDialogOpen: false,
-  }));
 }
 
 export function createAuthActions(set: KetoSet, get: KetoGet) {
   return {
     setAuthDialogOpen: (open: boolean) => set({ authDialogOpen: open }),
+    clearSyncStatus: () => set({ syncStatus: null }),
+
+    syncNow: async (opts) => {
+      const quiet = opts?.quiet ?? false;
+      const userId = get().authUserId;
+      if (!userId || !hasSupabaseCredentials()) {
+        if (!quiet) {
+          set({
+            syncStatus: {
+              type: "info",
+              message:
+                "Entra na conta para sincronizar alimentos, diário e plano entre dispositivos.",
+            },
+            authDialogOpen: true,
+          });
+        }
+        return false;
+      }
+      try {
+        await afterAuth(set, get, userId, get().authEmail, { quiet });
+        return true;
+      } catch {
+        return false;
+      }
+    },
 
     initRemote: async () => {
       const generation = ++initRemoteGeneration;
@@ -122,12 +187,9 @@ export function createAuthActions(set: KetoSet, get: KetoGet) {
         if (generation !== initRemoteGeneration) return;
 
         if (auth.user) {
-          await afterAuth(
-            set,
-            get,
-            auth.user.id,
-            auth.user.email ?? null,
-          );
+          await afterAuth(set, get, auth.user.id, auth.user.email ?? null, {
+            quiet: true,
+          });
         } else {
           set({ authUserId: null, authEmail: null });
         }
