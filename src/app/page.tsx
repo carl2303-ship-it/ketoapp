@@ -4,6 +4,8 @@ import { useMemo } from "react";
 import { MacroRing } from "@/components/dashboard/macro-ring";
 import { SummaryCards } from "@/components/dashboard/summary-cards";
 import { DateNav } from "@/components/dashboard/date-nav";
+import { GoalCalendar } from "@/components/dashboard/goal-calendar";
+import { MealRecommendations } from "@/components/dashboard/meal-recommendations";
 import { FoodLogForm } from "@/components/food/food-log-form";
 import { TodaysMeals } from "@/components/food/todays-meals";
 import {
@@ -12,28 +14,26 @@ import {
   remainingTargets,
   totalsFromEntries,
 } from "@/lib/macros";
+import { fatTargetG, proteinTargetG } from "@/lib/goal-status";
 import { useKetoStore } from "@/store/keto-store";
+import { useEntriesForDate, useFoodsById, useLogForDate } from "@/store/selectors";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function DashboardPage() {
   const profile = useKetoStore((s) => s.profile);
-  const foods = useKetoStore((s) => s.foods);
   const selectedDate = useKetoStore((s) => s.selectedDate);
-  const getEntriesForDate = useKetoStore((s) => s.getEntriesForDate);
-  const getLogForDate = useKetoStore((s) => s.getLogForDate);
+  const entries = useEntriesForDate(selectedDate);
+  const log = useLogForDate(selectedDate);
+  const foodsById = useFoodsById();
 
-  const entries = getEntriesForDate(selectedDate);
-  const log = getLogForDate(selectedDate);
-  const foodsById = useMemo(
-    () => new Map(foods.map((f) => [f.id, f])),
-    [foods],
-  );
   const totals = useMemo(
     () => totalsFromEntries(entries, foodsById),
     [entries, foodsById],
   );
   const pct = macroPercentages(totals);
   const remaining = remainingTargets(profile, totals);
+  const fatLeft = fatTargetG(profile) - totals.fat_g;
+  const proteinLeft = proteinTargetG(profile) - totals.protein_g;
 
   return (
     <div className="space-y-8">
@@ -51,6 +51,8 @@ export default function DashboardPage() {
       </section>
 
       <DateNav />
+
+      <GoalCalendar />
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
         <section className="animate-rise-delay space-y-4">
@@ -77,6 +79,9 @@ export default function DashboardPage() {
                   </p>
                   <p className="text-muted-foreground">
                     Gordura · {formatNum(totals.fat_g, 1)} g
+                    <span className="block text-[10px]">
+                      resta {formatNum(Math.max(0, fatLeft), 0)} g
+                    </span>
                   </p>
                 </div>
                 <div>
@@ -85,6 +90,9 @@ export default function DashboardPage() {
                   </p>
                   <p className="text-muted-foreground">
                     Proteína · {formatNum(totals.protein_g, 1)} g
+                    <span className="block text-[10px]">
+                      resta {formatNum(Math.max(0, proteinLeft), 0)} g
+                    </span>
                   </p>
                 </div>
                 <div>
@@ -117,6 +125,8 @@ export default function DashboardPage() {
             waterMl={log?.water_ml ?? 0}
             waterTargetL={profile.water_target_l}
           />
+
+          <MealRecommendations />
         </section>
 
         <section className="space-y-4">

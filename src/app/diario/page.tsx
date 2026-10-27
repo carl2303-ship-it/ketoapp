@@ -1,18 +1,19 @@
 "use client";
 
 import { DateNav } from "@/components/dashboard/date-nav";
+import { MealRecommendations } from "@/components/dashboard/meal-recommendations";
 import { FoodLogForm } from "@/components/food/food-log-form";
 import { TodaysMeals } from "@/components/food/todays-meals";
 import { Button } from "@/components/ui/button";
 import { useKetoStore } from "@/store/keto-store";
+import { useLogForDate } from "@/store/selectors";
 import { formatNum } from "@/lib/macros";
 
 export default function DiarioPage() {
   const selectedDate = useKetoStore((s) => s.selectedDate);
-  const getLogForDate = useKetoStore((s) => s.getLogForDate);
   const updateWater = useKetoStore((s) => s.updateWater);
   const profile = useKetoStore((s) => s.profile);
-  const log = getLogForDate(selectedDate);
+  const log = useLogForDate(selectedDate);
   const water = log?.water_ml ?? 0;
 
   return (
@@ -22,7 +23,8 @@ export default function DiarioPage() {
           Diário alimentar
         </h1>
         <p className="text-muted-foreground">
-          Navega por data, regista refeições e hidratação.
+          Navega por data, regista refeições e hidratação. Copia uma refeição
+          (ex. Almoço) para outro dia pelo botão em cada bloco.
         </p>
       </div>
 
@@ -56,7 +58,10 @@ export default function DiarioPage() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <FoodLogForm />
+        <div className="space-y-4">
+          <FoodLogForm />
+          <MealRecommendations />
+        </div>
         <TodaysMeals />
       </div>
     </div>
