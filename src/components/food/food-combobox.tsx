@@ -6,9 +6,11 @@ import { Combobox } from "@base-ui/react/combobox";
 import { foodSelectSuffix } from "@/lib/macros";
 import type { Food } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { useKetoStore } from "@/store/keto-store";
 
 type FoodComboboxProps = {
-  foods: Food[];
+  /** @deprecated Ignorado — a lista vem sempre do Zustand (source of truth). */
+  foods?: Food[];
   value: string;
   onValueChange: (foodId: string) => void;
   placeholder?: string;
@@ -21,8 +23,11 @@ function foodLabel(food: Food): string {
   return food.brand ? `${food.name} · ${food.brand}` : food.name;
 }
 
+/**
+ * Picker de alimentos — lê SEMPRE de `useKetoStore.foods`.
+ * `foodsEpoch` força remount quando a biblioteca muda.
+ */
 export function FoodCombobox({
-  foods,
   value,
   onValueChange,
   placeholder = "Pesquisar alimento…",
@@ -33,10 +38,16 @@ export function FoodCombobox({
   const autoId = useId();
   const id = idProp ?? autoId;
 
-  const selected = useMemo(
-    () => foods.find((f) => f.id === value) ?? null,
-    [foods, value],
-  );
+  const foods = useKetoStore((s) => s.foods);
+  const foodsEpoch = useKetoStore((s) => s.foodsEpoch);
+
+  const selected = useMemo(() => {
+    if (value) {
+      const match = foods.find((f) => f.id === value);
+      if (match) return match;
+    }
+    return foods[0] ?? null;
+  }, [foods, value]);
 
   const filter = useCallback((item: Food, query: string) => {
     const q = query.trim().toLowerCase();
@@ -48,9 +59,18 @@ export function FoodCombobox({
     );
   }, []);
 
+  const personalCount = useMemo(
+    () => foods.filter((f) => !f.is_global).length,
+    [foods],
+  );
+
+  // Lista estável por epoch — Base UI Combobox pode cachear `items` entre updates.
+  const items = useMemo(() => foods.slice(), [foods, foodsEpoch]);
+
   return (
     <Combobox.Root
-      items={foods}
+      key={`food-picker-${foodsEpoch}-${items.length}-${personalCount}`}
+      items={items}
       value={selected}
       onValueChange={(food) => {
         onValueChange(food?.id ?? "");
@@ -110,6 +130,10 @@ export function FoodCombobox({
               "data-ending-style:scale-95 data-ending-style:opacity-0",
             )}
           >
+            <div className="border-b border-border/60 px-3 py-1.5 text-[11px] text-muted-foreground">
+              {personalCount} pessoal{personalCount === 1 ? "" : "is"} ·{" "}
+              {items.length} no total — pessoais no topo
+            </div>
             <Combobox.Empty>
               <p className="px-3 py-4 text-sm text-muted-foreground">
                 Nenhum alimento encontrado.
@@ -118,7 +142,7 @@ export function FoodCombobox({
             <Combobox.List className="max-h-[min(18rem,var(--available-height))] overflow-y-auto overscroll-contain p-1 outline-none data-empty:p-0">
               {(food: Food) => (
                 <Combobox.Item
-                  key={food.id}
+                  key={`${foodsEpoch}-${food.id}`}
                   value={food}
                   className={cn(
                     "grid cursor-default grid-cols-[1rem_1fr] items-start gap-2 rounded-md px-2 py-2 text-sm outline-none select-none",
@@ -131,6 +155,11 @@ export function FoodCombobox({
                   <span className="col-start-2 min-w-0">
                     <span className="block truncate font-medium">
                       {food.name}
+                      {!food.is_global ? (
+                        <span className="ml-1.5 rounded bg-emerald-500/20 px-1 py-0.5 text-[10px] font-medium text-emerald-700 dark:text-emerald-300">
+                          Pessoal
+                        </span>
+                      ) : null}
                       {food.brand ? (
                         <span className="font-normal text-muted-foreground">
                           {" "}

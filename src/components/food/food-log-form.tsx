@@ -21,6 +21,7 @@ import { useKetoStore } from "@/store/keto-store";
 
 export function FoodLogForm() {
   const foods = useKetoStore((s) => s.foods);
+  const foodsEpoch = useKetoStore((s) => s.foodsEpoch);
   const addMealEntry = useKetoStore((s) => s.addMealEntry);
   const [mealType, setMealType] = useState<MealType>("almoco");
   const [foodId, setFoodId] = useState("");
@@ -108,16 +109,14 @@ export function FoodLogForm() {
           <div className="space-y-2">
             <Label htmlFor="food-log-combobox">Alimento</Label>
             <FoodCombobox
-              key={`foods-${foods.length}-${foods.find((f) => !f.is_global)?.id ?? "g"}`}
               id="food-log-combobox"
-              foods={foods}
               value={resolvedFoodId}
               onValueChange={setFoodId}
               placeholder="Escrever nome ou marca…"
             />
             <p className="text-[11px] text-muted-foreground">
               {foods.filter((f) => !f.is_global).length} pessoais · {foods.length}{" "}
-              no total — novos aparecem de imediato no topo.
+              no total — novos no topo (sync #{foodsEpoch}).
             </p>
           </div>
 
