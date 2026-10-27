@@ -19,6 +19,8 @@ export interface KetoState {
   authError: string | null;
   profile: Profile;
   foods: Food[];
+  /** Incrementa em cada mutação de alimentos — força remount dos pickers. */
+  foodsEpoch: number;
   /** Globais ocultos localmente (apagar global não mexe no Supabase). */
   hiddenGlobalIds: string[];
   dailyLogs: DailyLog[];
@@ -52,7 +54,13 @@ export interface KetoState {
   }) => Promise<{ ok: boolean; copied: number; error?: string }>;
   addFood: (
     food: Omit<Food, "id" | "user_id" | "is_global">,
-  ) => Promise<{ ok: boolean; synced: boolean; error?: string; warning?: string }>;
+  ) => Promise<{
+    ok: boolean;
+    synced: boolean;
+    foodId?: string;
+    error?: string;
+    warning?: string;
+  }>;
   updateFood: (
     id: string,
     food: Omit<Food, "id" | "user_id" | "is_global">,

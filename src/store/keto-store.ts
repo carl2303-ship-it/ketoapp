@@ -27,6 +27,7 @@ export const useKetoStore = create<KetoState>()(
       authError: null,
       profile: defaultProfile,
       foods: SEED_FOODS,
+      foodsEpoch: 0,
       hiddenGlobalIds: [],
       dailyLogs: [],
       mealEntries: [],

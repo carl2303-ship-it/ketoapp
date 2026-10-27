@@ -1,13 +1,14 @@
 "use client";
 
-const CURRENT_KEY = "ketotrack-v5";
+const CURRENT_KEY = "ketotrack-v6";
 const LEGACY_PERSIST_KEYS = [
+  "ketotrack-v5",
   "ketotrack-v4",
   "ketotrack-v3",
   "ketotrack-v2",
 ] as const;
 
-/** Copia estado de chaves antigas para v5 (uma vez) antes do rehydrate. */
+/** Copia estado de chaves antigas para v6 (uma vez) antes do rehydrate. */
 export function migrateLegacyKetoPersist(): void {
   if (typeof window === "undefined") return;
   try {
