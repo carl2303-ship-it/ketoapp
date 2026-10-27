@@ -45,6 +45,12 @@ export function StoreBootstrap() {
       bootstrapPromise = bootstrapStore();
     }
     void bootstrapPromise;
+    // Expõe o store no browser só em desenvolvimento (screenshots / debug).
+    if (process.env.NODE_ENV === "development") {
+      (
+        window as unknown as { __KETO_STORE__?: typeof useKetoStore }
+      ).__KETO_STORE__ = useKetoStore;
+    }
   }, []);
 
   return null;
