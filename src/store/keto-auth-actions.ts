@@ -11,12 +11,39 @@ import {
 import { defaultProfile } from "@/store/keto-profile";
 import type { KetoGet, KetoSet } from "@/store/keto-state";
 import { loadUserData } from "@/store/load-user-data";
+import { syncLocalDataToRemote } from "@/store/sync-local-to-remote";
 
 /** Gerações de initRemote — respostas stale não sobrescrevem estado mais novo. */
 let initRemoteGeneration = 0;
 
+async function afterAuth(
+  set: KetoSet,
+  get: KetoGet,
+  userId: string,
+  email: string | null,
+) {
+  // 1) Sobe dados locais (alimentos / diário / plano) e remapeia IDs.
+  try {
+    await syncLocalDataToRemote(set, get, userId);
+  } catch {
+    // Continua — loadUserData ainda traz o que já está na BD.
+  }
+
+  // 2) Perfil + diário + plano remotos.
+  await loadUserData(set, get, userId, email);
+
+  // 3) Preservar quaisquer pessoais locais que ainda não sincronizaram.
+  set((s) => ({
+    foods: mergeFoodLists(s.foods, readPersistedPersonalFoods()),
+    foodsEpoch: s.foodsEpoch + 1,
+    authDialogOpen: false,
+  }));
+}
+
 export function createAuthActions(set: KetoSet, get: KetoGet) {
   return {
+    setAuthDialogOpen: (open: boolean) => set({ authDialogOpen: open }),
+
     initRemote: async () => {
       const generation = ++initRemoteGeneration;
 
@@ -95,14 +122,12 @@ export function createAuthActions(set: KetoSet, get: KetoGet) {
         if (generation !== initRemoteGeneration) return;
 
         if (auth.user) {
-          await loadUserData(set, get, auth.user.id, auth.user.email ?? null);
-          // loadUserData não toca em foods — reafirma pessoais na mesma.
-          if (generation === initRemoteGeneration) {
-            set((s) => ({
-              foods: mergeFoodLists(s.foods, personalSnapshot()),
-              foodsEpoch: s.foodsEpoch + 1,
-            }));
-          }
+          await afterAuth(
+            set,
+            get,
+            auth.user.id,
+            auth.user.email ?? null,
+          );
         } else {
           set({ authUserId: null, authEmail: null });
         }
@@ -133,16 +158,13 @@ export function createAuthActions(set: KetoSet, get: KetoGet) {
             authError:
               error?.message === "Email not confirmed"
                 ? "Confirma o email na caixa de entrada antes de entrar."
-                : error?.message ?? "Falha no login.",
+                : error?.message === "Invalid login credentials"
+                  ? "Email ou password incorrectos."
+                  : error?.message ?? "Falha no login.",
           });
           return false;
         }
-        await loadUserData(set, get, data.user.id, data.user.email ?? null);
-        // Preservar pessoais locais após sync de perfil/diário.
-        set((s) => ({
-          foods: mergeFoodLists(s.foods, readPersistedPersonalFoods()),
-          foodsEpoch: s.foodsEpoch + 1,
-        }));
+        await afterAuth(set, get, data.user.id, data.user.email ?? null);
         return true;
       } catch (e) {
         set({
@@ -152,20 +174,71 @@ export function createAuthActions(set: KetoSet, get: KetoGet) {
       }
     },
 
+    signUp: async (email: string, password: string) => {
+      if (!hasSupabaseCredentials()) {
+        set({ authError: "Credenciais Supabase em falta." });
+        return false;
+      }
+      if (password.length < 6) {
+        set({ authError: "A password precisa de pelo menos 6 caracteres." });
+        return false;
+      }
+      set({ authError: null });
+      try {
+        const supabase = createClient();
+        const { data, error } = await supabase.auth.signUp({
+          email: email.trim(),
+          password,
+        });
+        if (error) {
+          set({
+            authError:
+              error.message.includes("already registered") ||
+              error.message.includes("User already registered")
+                ? "Este email já tem conta. Usa Entrar."
+                : error.message || "Falha ao criar conta.",
+          });
+          return false;
+        }
+        if (!data.user) {
+          set({ authError: "Falha ao criar conta." });
+          return false;
+        }
+        // Sem sessão = confirmação de email obrigatória no projecto Supabase.
+        if (!data.session) {
+          set({
+            authError:
+              "Conta criada. Confirma o email na caixa de entrada e depois entra para sincronizar telemóvel e PC.",
+          });
+          return false;
+        }
+        await afterAuth(set, get, data.user.id, data.user.email ?? null);
+        return true;
+      } catch (e) {
+        set({
+          authError: e instanceof Error ? e.message : "Falha ao criar conta.",
+        });
+        return false;
+      }
+    },
+
     signOut: async () => {
+      // Limpa sessão local (PWA/standalone incluído). Não desinstala a app.
       if (hasSupabaseCredentials()) {
         try {
           const supabase = createClient();
-          await supabase.auth.signOut();
+          await supabase.auth.signOut({ scope: "local" });
         } catch {
-          // ignore
+          // Mesmo se a rede falhar, limpa estado local abaixo.
         }
       }
       set({
         authUserId: null,
         authEmail: null,
         authError: null,
+        authDialogOpen: false,
         profile: defaultProfile,
+        // Plano remoto era da conta — evita mostrar dados de outro user.
         weeklyPlans: [],
       });
     },

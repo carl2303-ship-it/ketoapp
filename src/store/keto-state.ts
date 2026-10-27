@@ -17,6 +17,8 @@ export interface KetoState {
   authUserId: string | null;
   authEmail: string | null;
   authError: string | null;
+  /** Controla o diálogo Entrar / Criar conta (também aberto pelo banner). */
+  authDialogOpen: boolean;
   profile: Profile;
   foods: Food[];
   /** Incrementa em cada mutação de alimentos — força remount dos pickers. */
@@ -34,7 +36,9 @@ export interface KetoState {
   setSearchQuery: (q: string) => void;
   setCategoryFilter: (c: string) => void;
   initRemote: () => Promise<void>;
+  setAuthDialogOpen: (open: boolean) => void;
   signIn: (email: string, password: string) => Promise<boolean>;
+  signUp: (email: string, password: string) => Promise<boolean>;
   signOut: () => Promise<void>;
   ensureDailyLog: (date?: string) => string;
   addMealEntry: (input: {
