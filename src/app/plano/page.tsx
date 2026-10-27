@@ -26,6 +26,7 @@ export default function PlanoPage() {
   const addWeeklyPlan = useKetoStore((s) => s.addWeeklyPlan);
   const removeWeeklyPlan = useKetoStore((s) => s.removeWeeklyPlan);
   const copyDay = useKetoStore((s) => s.copyDay);
+  const copyMeal = useKetoStore((s) => s.copyMeal);
   const authUserId = useKetoStore((s) => s.authUserId);
 
   const [activeDay, setActiveDay] = useState(0);
@@ -34,6 +35,8 @@ export default function PlanoPage() {
   const [grams, setGrams] = useState("100");
   const [copyFrom, setCopyFrom] = useState("0");
   const [copyTo, setCopyTo] = useState("1");
+  const [copyMealType, setCopyMealType] = useState<MealType>("almoco");
+  const [copyMealMsg, setCopyMealMsg] = useState<string | null>(null);
   const [showList, setShowList] = useState(false);
   const [pending, startTransition] = useTransition();
 
@@ -209,12 +212,16 @@ export default function PlanoPage() {
                 <div className="space-y-1.5">
                   <Label htmlFor="plano-food-combobox">Alimento</Label>
                   <FoodCombobox
+                    key={`plano-foods-${foods.length}-${foods.find((f) => !f.is_global)?.id ?? "g"}`}
                     id="plano-food-combobox"
                     foods={foods}
                     value={selectedFoodId}
                     onValueChange={setFoodId}
                     placeholder="Escrever nome ou marca…"
                   />
+                  <p className="text-[11px] text-muted-foreground">
+                    {foods.filter((f) => !f.is_global).length} pessoais na lista
+                  </p>
                 </div>
                 <div className="space-y-1.5">
                   <Label>Porção (g)</Label>
@@ -240,9 +247,30 @@ export default function PlanoPage() {
 
           <Card className="border-border/70 bg-card/70">
             <CardHeader>
-              <CardTitle className="font-heading text-base">Copiar dia</CardTitle>
+              <CardTitle className="font-heading text-base">
+                Copiar refeição
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
+              <div className="space-y-1.5">
+                <Label>Refeição</Label>
+                <Select
+                  items={mealItems}
+                  value={copyMealType}
+                  onValueChange={(v) => v && setCopyMealType(v as MealType)}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MEAL_TYPES.map((m) => (
+                      <SelectItem key={m} value={m}>
+                        {MEAL_LABELS[m]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label>De</Label>
@@ -284,15 +312,51 @@ export default function PlanoPage() {
                 </div>
               </div>
               <Button
-                variant="outline"
-                className="w-full"
-                onClick={() =>
-                  void copyDay(Number(copyFrom), Number(copyTo))
-                }
+                className="w-full bg-emerald-600 hover:bg-emerald-500"
+                onClick={() => {
+                  setCopyMealMsg(null);
+                  void (async () => {
+                    const result = await copyMeal({
+                      fromDay: Number(copyFrom),
+                      toDay: Number(copyTo),
+                      meal_type: copyMealType,
+                      replace: true,
+                    });
+                    if (!result.ok || result.copied === 0) {
+                      setCopyMealMsg(
+                        "Nada para copiar — a refeição de origem está vazia ou o dia é o mesmo.",
+                      );
+                      return;
+                    }
+                    setCopyMealMsg(
+                      `Copiado ${result.copied} item${result.copied === 1 ? "" : "s"} (${MEAL_LABELS[copyMealType]}).`,
+                    );
+                    setActiveDay(Number(copyTo));
+                  })();
+                }}
               >
                 <Copy className="size-4" />
-                Copiar (substitui o dia destino)
+                Copiar só esta refeição
               </Button>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => {
+                  setCopyMealMsg(null);
+                  void copyDay(Number(copyFrom), Number(copyTo)).then(() => {
+                    setCopyMealMsg("Dia completo copiado (substituiu o destino).");
+                    setActiveDay(Number(copyTo));
+                  });
+                }}
+              >
+                <Copy className="size-4" />
+                Copiar dia inteiro
+              </Button>
+              {copyMealMsg ? (
+                <p className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-800 dark:text-emerald-200">
+                  {copyMealMsg}
+                </p>
+              ) : null}
             </CardContent>
           </Card>
         </div>
