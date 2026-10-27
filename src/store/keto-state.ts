@@ -43,6 +43,13 @@ export interface KetoState {
     date?: string;
   }) => Promise<void>;
   removeMealEntry: (id: string) => Promise<void>;
+  /** Copia uma refeição do diário de uma data para outra. */
+  copyMealToDate: (input: {
+    fromDate: string;
+    toDate: string;
+    meal_type: MealType;
+    replace?: boolean;
+  }) => Promise<{ ok: boolean; copied: number; error?: string }>;
   addFood: (
     food: Omit<Food, "id" | "user_id" | "is_global">,
   ) => Promise<{ ok: boolean; synced: boolean; error?: string; warning?: string }>;
@@ -66,6 +73,13 @@ export interface KetoState {
   }) => Promise<void>;
   removeWeeklyPlan: (id: string) => Promise<void>;
   copyDay: (fromDay: number, toDay: number) => Promise<void>;
+  /** Copia só uma refeição no planeador (ex. Almoço Seg → Qua). */
+  copyMeal: (input: {
+    fromDay: number;
+    toDay: number;
+    meal_type: MealType;
+    replace?: boolean;
+  }) => Promise<{ ok: boolean; copied: number }>;
   getLogForDate: (date?: string) => DailyLog | undefined;
   getEntriesForDate: (date?: string) => MealEntry[];
   getPlansForDay: (day: number) => WeeklyPlan[];

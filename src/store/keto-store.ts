@@ -11,6 +11,7 @@ import { createMealActions } from "@/store/keto-meal-actions";
 import { createPlanActions } from "@/store/keto-plan-actions";
 import { defaultProfile } from "@/store/keto-profile";
 import type { KetoState } from "@/store/keto-state";
+import { KETO_PERSIST_KEY } from "@/store/persist-migrate";
 
 export type { KetoState } from "@/store/keto-state";
 
@@ -61,7 +62,7 @@ export const useKetoStore = create<KetoState>()(
         get().weeklyPlans.filter((p) => p.day_of_week === day),
     }),
     {
-      name: "ketotrack-v4",
+      name: KETO_PERSIST_KEY,
       // Next.js SSR: nunca rehidratar durante o paint inicial (evita #418 + flash).
       skipHydration: true,
       partialize: (s) => ({
