@@ -1,5 +1,5 @@
 /* Minimal service worker — enables installability; network-first for navigations. */
-const CACHE = "ketotrack-shell-v1";
+const CACHE = "ketotrack-shell-v2";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(self.skipWaiting());
