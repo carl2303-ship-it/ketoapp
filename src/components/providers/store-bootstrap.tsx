@@ -53,5 +53,32 @@ export function StoreBootstrap() {
     }
   }, []);
 
+  // Pull remoto quando o separador/PWA volta ao foco (cross-device).
+  useEffect(() => {
+    let lastPull = 0;
+    const MIN_INTERVAL_MS = 8_000;
+
+    const pullIfNeeded = () => {
+      const state = useKetoStore.getState();
+      if (!state.hydrated || !state.authUserId || !state.supabaseReady) return;
+      if (state.syncing) return;
+      const now = Date.now();
+      if (now - lastPull < MIN_INTERVAL_MS) return;
+      lastPull = now;
+      void state.syncNow({ quiet: true });
+    };
+
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") pullIfNeeded();
+    };
+
+    window.addEventListener("focus", pullIfNeeded);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("focus", pullIfNeeded);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, []);
+
   return null;
 }
