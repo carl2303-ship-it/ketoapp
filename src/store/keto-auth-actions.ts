@@ -85,7 +85,7 @@ export function createAuthActions(set: KetoSet, get: KetoGet) {
     setAuthDialogOpen: (open: boolean) => set({ authDialogOpen: open }),
     clearSyncStatus: () => set({ syncStatus: null }),
 
-    syncNow: async (opts) => {
+    syncNow: async (opts?: { quiet?: boolean }) => {
       const quiet = opts?.quiet ?? false;
       const userId = get().authUserId;
       if (!userId || !hasSupabaseCredentials()) {
