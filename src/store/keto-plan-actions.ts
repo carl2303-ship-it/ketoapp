@@ -83,5 +83,39 @@ export function createPlanActions(set: KetoSet, get: KetoGet) {
         });
       }
     },
+
+    copyMeal: async (input: {
+      fromDay: number;
+      toDay: number;
+      meal_type: MealType;
+      replace?: boolean;
+    }) => {
+      const { fromDay, toDay, meal_type, replace = true } = input;
+      if (fromDay === toDay) return { ok: false, copied: 0 };
+
+      const source = get().weeklyPlans.filter(
+        (p) => p.day_of_week === fromDay && p.meal_type === meal_type,
+      );
+      if (source.length === 0) return { ok: false, copied: 0 };
+
+      if (replace) {
+        const existing = get().weeklyPlans.filter(
+          (p) => p.day_of_week === toDay && p.meal_type === meal_type,
+        );
+        for (const p of existing) {
+          await get().removeWeeklyPlan(p.id);
+        }
+      }
+
+      for (const p of source) {
+        await get().addWeeklyPlan({
+          day_of_week: toDay,
+          meal_type: p.meal_type,
+          food_id: p.food_id,
+          amount_grams: p.amount_grams,
+        });
+      }
+      return { ok: true, copied: source.length };
+    },
   };
 }

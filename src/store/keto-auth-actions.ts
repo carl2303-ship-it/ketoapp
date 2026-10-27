@@ -4,7 +4,10 @@ import type { Food } from "@/lib/types";
 import { SEED_FOODS } from "@/lib/mock/seed-foods";
 import { hasSupabaseCredentials } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/client";
-import { mergeFoodLists } from "@/store/food-merge";
+import {
+  mergeFoodLists,
+  readPersistedPersonalFoods,
+} from "@/store/food-merge";
 import { defaultProfile } from "@/store/keto-profile";
 import type { KetoGet, KetoSet } from "@/store/keto-state";
 import { loadUserData } from "@/store/load-user-data";
@@ -15,22 +18,7 @@ export function createAuthActions(set: KetoSet, get: KetoGet) {
       /** Pessoais actuais em memória + o que ainda estiver só no persist. */
       const personalSnapshot = (): Food[] => {
         const fromState = get().foods.filter((f) => f && !f.is_global);
-        let fromStorage: Food[] = [];
-        if (typeof window !== "undefined") {
-          try {
-            const raw = window.localStorage.getItem("ketotrack-v4");
-            if (raw) {
-              const parsed = JSON.parse(raw) as {
-                state?: { foods?: Food[] };
-              };
-              fromStorage = (parsed.state?.foods ?? []).filter(
-                (f) => f && !f.is_global,
-              );
-            }
-          } catch {
-            // ignore
-          }
-        }
+        const fromStorage = readPersistedPersonalFoods();
         return mergeFoodLists(fromState, fromStorage);
       };
 
