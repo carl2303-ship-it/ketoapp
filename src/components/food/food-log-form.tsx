@@ -34,6 +34,7 @@ export function FoodLogForm() {
     [],
   );
 
+  // Pessoais primeiro (mergeFoodLists) — novos alimentos aparecem no topo.
   const resolvedFoodId = useMemo(() => {
     if (foodId && foods.some((f) => f.id === foodId)) return foodId;
     return foods[0]?.id ?? "";
@@ -107,12 +108,17 @@ export function FoodLogForm() {
           <div className="space-y-2">
             <Label htmlFor="food-log-combobox">Alimento</Label>
             <FoodCombobox
+              key={`foods-${foods.length}-${foods.find((f) => !f.is_global)?.id ?? "g"}`}
               id="food-log-combobox"
               foods={foods}
               value={resolvedFoodId}
               onValueChange={setFoodId}
               placeholder="Escrever nome ou marca…"
             />
+            <p className="text-[11px] text-muted-foreground">
+              {foods.filter((f) => !f.is_global).length} pessoais · {foods.length}{" "}
+              no total — novos aparecem de imediato no topo.
+            </p>
           </div>
 
           <div className="flex items-center justify-between rounded-lg border border-border/70 bg-muted/30 px-3 py-2">
