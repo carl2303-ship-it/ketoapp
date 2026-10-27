@@ -16,6 +16,7 @@ import { InstallAppButton } from "@/components/layout/install-app-button";
 import { AuthDialog } from "@/components/auth/auth-dialog";
 import { useKetoStore } from "@/store/keto-store";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 const NAV = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -78,11 +79,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="flex items-center gap-2">
             {/* Evita mismatch de hidratação (#418) no badge server vs client */}
             {hydrated && usingMock ? (
-              <Badge variant="secondary" className="max-w-[9rem] truncate text-[10px] sm:max-w-none">
+              <Badge variant="secondary" className="hidden max-w-[9rem] truncate text-[10px] xs:inline-flex sm:max-w-none sm:inline-flex">
                 {schemaMissing ? "Mock · schema em falta" : "Modo mock"}
               </Badge>
             ) : hydrated && supabaseReady ? (
-              <Badge className="bg-emerald-600 text-[10px] hover:bg-emerald-600">
+              <Badge className="hidden bg-emerald-600 text-[10px] hover:bg-emerald-600 sm:inline-flex">
                 {authUserId ? "Supabase · sync" : "Supabase · foods"}
               </Badge>
             ) : null}
@@ -102,9 +103,26 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         ) : null}
         {supabaseReady && !authUserId && !schemaMissing ? (
-          <div className="border-t border-emerald-500/20 bg-emerald-500/10 px-4 py-2 text-center text-xs text-emerald-900 dark:text-emerald-100">
-            Alimentos globais vindos do Supabase. Entra com a tua conta para
-            sincronizar diário, plano e alimentos pessoais (RLS).
+          <div className="flex flex-col items-center justify-center gap-2 border-t border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-center sm:flex-row sm:gap-3">
+            <p className="text-xs text-amber-950 dark:text-amber-100">
+              Entra para sincronizar entre telemóvel e PC — alimentos pessoais,
+              diário e plano. Sem login ficam só neste dispositivo.
+            </p>
+            <Button
+              size="sm"
+              className="h-7 shrink-0 bg-emerald-600 px-3 text-xs hover:bg-emerald-500"
+              onClick={() =>
+                useKetoStore.getState().setAuthDialogOpen(true)
+              }
+            >
+              Entrar / Criar conta
+            </Button>
+          </div>
+        ) : null}
+        {supabaseReady && authUserId && !schemaMissing ? (
+          <div className="border-t border-emerald-500/20 bg-emerald-500/10 px-4 py-1.5 text-center text-[11px] text-emerald-900 dark:text-emerald-100">
+            Conta activa — sync ligado. Para terminar a sessão (não desinstala a
+            PWA), abre o menu da conta no topo e escolhe «Sair da conta».
           </div>
         ) : null}
       </header>
