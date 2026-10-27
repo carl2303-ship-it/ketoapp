@@ -46,6 +46,7 @@ export function createMealActions(set: KetoSet, get: KetoGet) {
         is_tkd_workout_carb: Boolean(input.is_tkd_workout_carb),
       };
 
+      // Optimistic — UI (totais, cartões, refeições) actualiza já.
       set((s) => ({ mealEntries: [...s.mealEntries, entry] }));
 
       if (get().supabaseReady && get().authUserId && hasSupabaseCredentials()) {
@@ -69,10 +70,25 @@ export function createMealActions(set: KetoSet, get: KetoGet) {
             .single();
           if (logErr || !logRow) return;
 
+          const remoteLog = logRow as DailyLog;
+          // Remapear TODAS as entradas locais deste dia para o id remoto do log.
+          if (remoteLog.id !== logId) {
+            set((s) => ({
+              dailyLogs: s.dailyLogs.map((l) =>
+                l.id === logId ? remoteLog : l,
+              ),
+              mealEntries: s.mealEntries.map((e) =>
+                e.daily_log_id === logId
+                  ? { ...e, daily_log_id: remoteLog.id }
+                  : e,
+              ),
+            }));
+          }
+
           const { data: remote, error } = await supabase
             .from("meal_entries")
             .insert({
-              daily_log_id: logRow.id,
+              daily_log_id: remoteLog.id,
               meal_type: entry.meal_type,
               food_id: entry.food_id,
               amount_grams: entry.amount_grams,
@@ -85,9 +101,6 @@ export function createMealActions(set: KetoSet, get: KetoGet) {
             set((s) => ({
               mealEntries: s.mealEntries.map((e) =>
                 e.id === entry.id ? (remote as MealEntry) : e,
-              ),
-              dailyLogs: s.dailyLogs.map((l) =>
-                l.id === logId ? ({ ...logRow } as DailyLog) : l,
               ),
             }));
           }
@@ -109,6 +122,52 @@ export function createMealActions(set: KetoSet, get: KetoGet) {
           // ignore
         }
       }
+    },
+
+    copyMealToDate: async (input: {
+      fromDate: string;
+      toDate: string;
+      meal_type: MealType;
+      replace?: boolean;
+    }) => {
+      const { fromDate, toDate, meal_type, replace = true } = input;
+      if (fromDate === toDate) {
+        return { ok: false, copied: 0, error: "Escolhe um dia destino diferente." };
+      }
+
+      const source = get()
+        .getEntriesForDate(fromDate)
+        .filter((e) => e.meal_type === meal_type);
+
+      if (source.length === 0) {
+        return {
+          ok: false,
+          copied: 0,
+          error: "Não há itens nesta refeição no dia de origem.",
+        };
+      }
+
+      if (replace) {
+        const dest = get()
+          .getEntriesForDate(toDate)
+          .filter((e) => e.meal_type === meal_type);
+        for (const e of dest) {
+          await get().removeMealEntry(e.id);
+        }
+      }
+
+      for (const e of source) {
+        if (!e.food_id) continue;
+        await get().addMealEntry({
+          meal_type: e.meal_type,
+          food_id: e.food_id,
+          amount_grams: e.amount_grams,
+          is_tkd_workout_carb: e.is_tkd_workout_carb,
+          date: toDate,
+        });
+      }
+
+      return { ok: true, copied: source.length };
     },
 
     updateWater: async (ml: number, date?: string) => {
