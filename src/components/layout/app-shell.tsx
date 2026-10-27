@@ -14,6 +14,10 @@ import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { InstallAppButton } from "@/components/layout/install-app-button";
 import { AuthDialog } from "@/components/auth/auth-dialog";
+import {
+  SyncNowButton,
+  SyncStatusBanner,
+} from "@/components/layout/sync-controls";
 import { useKetoStore } from "@/store/keto-store";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -88,10 +92,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </Badge>
             ) : null}
             <InstallAppButton />
+            <SyncNowButton />
             <AuthDialog />
             <ThemeToggle />
           </div>
         </div>
+
+        <SyncStatusBanner />
 
         {schemaMissing ? (
           <div className="border-t border-amber-500/30 bg-amber-500/10 px-4 py-2 text-center text-xs text-amber-800 dark:text-amber-200">
