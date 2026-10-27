@@ -3,7 +3,10 @@
 import type { Food } from "@/lib/types";
 import { hasSupabaseCredentials } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/client";
-import { mergeFoodLists } from "@/store/food-merge";
+import {
+  flushPersonalFoodsToStorage,
+  mergeFoodLists,
+} from "@/store/food-merge";
 import { uid } from "@/store/keto-profile";
 import type { KetoGet, KetoSet } from "@/store/keto-state";
 
@@ -11,6 +14,11 @@ function withoutHidden(foods: Food[], hidden: string[]): Food[] {
   if (!hidden.length) return foods;
   const set = new Set(hidden);
   return foods.filter((f) => !set.has(f.id));
+}
+
+function commitFoods(set: KetoSet, get: KetoGet, foods: Food[]) {
+  set((s) => ({ foods, foodsEpoch: s.foodsEpoch + 1 }));
+  flushPersonalFoodsToStorage(foods);
 }
 
 export function createFoodActions(set: KetoSet, get: KetoGet) {
@@ -22,10 +30,8 @@ export function createFoodActions(set: KetoSet, get: KetoGet) {
         user_id: get().authUserId ?? get().profile.id,
         is_global: false,
       };
-      // Merge imediato — Dashboard / Diário / Plano vêem o alimento já.
-      set((s) => ({
-        foods: mergeFoodLists(s.foods, [local]),
-      }));
+      // Merge imediato + epoch + flush sync — pickers vêem já.
+      commitFoods(set, get, mergeFoodLists(get().foods, [local]));
 
       if (get().supabaseReady && get().authUserId && hasSupabaseCredentials()) {
         try {
@@ -40,16 +46,18 @@ export function createFoodActions(set: KetoSet, get: KetoGet) {
             .select()
             .single();
           if (!error && data) {
-            set((s) => ({
-              foods: s.foods.map((f) =>
-                f.id === local.id ? (data as Food) : f,
-              ),
-            }));
-            return { ok: true, synced: true };
+            const remote = data as Food;
+            commitFoods(
+              set,
+              get,
+              get().foods.map((f) => (f.id === local.id ? remote : f)),
+            );
+            return { ok: true, synced: true, foodId: remote.id };
           }
           return {
             ok: true,
             synced: false,
+            foodId: local.id,
             warning:
               error?.message ||
               "Guardado neste dispositivo; sync Supabase falhou.",
@@ -58,6 +66,7 @@ export function createFoodActions(set: KetoSet, get: KetoGet) {
           return {
             ok: true,
             synced: false,
+            foodId: local.id,
             warning:
               e instanceof Error
                 ? e.message
@@ -69,6 +78,7 @@ export function createFoodActions(set: KetoSet, get: KetoGet) {
       return {
         ok: true,
         synced: false,
+        foodId: local.id,
         warning: get().supabaseReady
           ? "Guardado neste dispositivo. Entra na conta para sincronizar com o Supabase."
           : "Guardado neste dispositivo (modo local).",
@@ -100,15 +110,18 @@ export function createFoodActions(set: KetoSet, get: KetoGet) {
           const hidden = Array.from(
             new Set([...s.hiddenGlobalIds, existing.id]),
           );
+          const nextFoods = withoutHidden(
+            mergeFoodLists(
+              s.foods.filter((f) => f.id !== existing.id),
+              [local],
+            ),
+            hidden,
+          );
+          flushPersonalFoodsToStorage(nextFoods);
           return {
             hiddenGlobalIds: hidden,
-            foods: withoutHidden(
-              mergeFoodLists(
-                s.foods.filter((f) => f.id !== existing.id),
-                [local],
-              ),
-              hidden,
-            ),
+            foods: nextFoods,
+            foodsEpoch: s.foodsEpoch + 1,
             mealEntries: s.mealEntries.map((e) =>
               e.food_id === existing.id ? { ...e, food_id: local.id } : e,
             ),
@@ -136,15 +149,22 @@ export function createFoodActions(set: KetoSet, get: KetoGet) {
               .single();
             if (!error && data) {
               const remote = data as Food;
-              set((s) => ({
-                foods: s.foods.map((f) => (f.id === local.id ? remote : f)),
-                mealEntries: s.mealEntries.map((e) =>
-                  e.food_id === local.id ? { ...e, food_id: remote.id } : e,
-                ),
-                weeklyPlans: s.weeklyPlans.map((p) =>
-                  p.food_id === local.id ? { ...p, food_id: remote.id } : p,
-                ),
-              }));
+              set((s) => {
+                const nextFoods = s.foods.map((f) =>
+                  f.id === local.id ? remote : f,
+                );
+                flushPersonalFoodsToStorage(nextFoods);
+                return {
+                  foods: nextFoods,
+                  foodsEpoch: s.foodsEpoch + 1,
+                  mealEntries: s.mealEntries.map((e) =>
+                    e.food_id === local.id ? { ...e, food_id: remote.id } : e,
+                  ),
+                  weeklyPlans: s.weeklyPlans.map((p) =>
+                    p.food_id === local.id ? { ...p, food_id: remote.id } : p,
+                  ),
+                };
+              });
             }
           } catch {
             // mantém cópia local
@@ -153,16 +173,11 @@ export function createFoodActions(set: KetoSet, get: KetoGet) {
         return { ok: true };
       }
 
-      set((s) => ({
-        foods: s.foods.map((f) =>
-          f.id === id
-            ? {
-                ...f,
-                ...food,
-              }
-            : f,
-        ),
-      }));
+      commitFoods(
+        set,
+        get,
+        get().foods.map((f) => (f.id === id ? { ...f, ...food } : f)),
+      );
 
       if (
         get().supabaseReady &&
@@ -230,9 +245,12 @@ export function createFoodActions(set: KetoSet, get: KetoGet) {
       if (existing.is_global) {
         set((s) => {
           const hidden = Array.from(new Set([...s.hiddenGlobalIds, id]));
+          const nextFoods = s.foods.filter((f) => f.id !== id);
+          flushPersonalFoodsToStorage(nextFoods);
           return {
             hiddenGlobalIds: hidden,
-            foods: s.foods.filter((f) => f.id !== id),
+            foods: nextFoods,
+            foodsEpoch: s.foodsEpoch + 1,
           };
         });
         return { ok: true };
@@ -269,7 +287,11 @@ export function createFoodActions(set: KetoSet, get: KetoGet) {
         }
       }
 
-      set((s) => ({ foods: s.foods.filter((f) => f.id !== id) }));
+      commitFoods(
+        set,
+        get,
+        get().foods.filter((f) => f.id !== id),
+      );
       return { ok: true };
     },
   };

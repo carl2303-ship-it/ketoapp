@@ -12,10 +12,15 @@ import { defaultProfile } from "@/store/keto-profile";
 import type { KetoGet, KetoSet } from "@/store/keto-state";
 import { loadUserData } from "@/store/load-user-data";
 
+/** Gerações de initRemote — respostas stale não sobrescrevem estado mais novo. */
+let initRemoteGeneration = 0;
+
 export function createAuthActions(set: KetoSet, get: KetoGet) {
   return {
     initRemote: async () => {
-      /** Pessoais actuais em memória + o que ainda estiver só no persist. */
+      const generation = ++initRemoteGeneration;
+
+      /** Pessoais actuais em memória + o que ainda estiver no persist (todas as chaves). */
       const personalSnapshot = (): Food[] => {
         const fromState = get().foods.filter((f) => f && !f.is_global);
         const fromStorage = readPersistedPersonalFoods();
@@ -29,8 +34,21 @@ export function createAuthActions(set: KetoSet, get: KetoGet) {
         );
       };
 
-      if (!hasSupabaseCredentials()) {
+      const commitFoods = (partial: {
+        usingMock: boolean;
+        supabaseReady: boolean;
+        schemaMissing?: boolean;
+        foods: Food[];
+      }) => {
+        if (generation !== initRemoteGeneration) return;
         set({
+          ...partial,
+          foodsEpoch: get().foodsEpoch + 1,
+        });
+      };
+
+      if (!hasSupabaseCredentials()) {
+        commitFoods({
           usingMock: true,
           supabaseReady: false,
           schemaMissing: false,
@@ -46,12 +64,14 @@ export function createAuthActions(set: KetoSet, get: KetoGet) {
           .select("*")
           .order("name");
 
+        if (generation !== initRemoteGeneration) return;
+
         if (error) {
           const missing =
             error.code === "PGRST205" ||
             error.message?.toLowerCase().includes("schema cache") ||
             error.message?.toLowerCase().includes("could not find");
-          set({
+          commitFoods({
             usingMock: true,
             supabaseReady: false,
             schemaMissing: missing,
@@ -64,7 +84,7 @@ export function createAuthActions(set: KetoSet, get: KetoGet) {
         const base = remoteFoods.length > 0 ? remoteFoods : SEED_FOODS;
         // Re-lê pessoais DEPOIS do await — o utilizador pode ter criado
         // alimentos enquanto o fetch corria.
-        set({
+        commitFoods({
           usingMock: false,
           supabaseReady: true,
           schemaMissing: false,
@@ -72,13 +92,23 @@ export function createAuthActions(set: KetoSet, get: KetoGet) {
         });
 
         const { data: auth } = await supabase.auth.getUser();
+        if (generation !== initRemoteGeneration) return;
+
         if (auth.user) {
           await loadUserData(set, get, auth.user.id, auth.user.email ?? null);
+          // loadUserData não toca em foods — reafirma pessoais na mesma.
+          if (generation === initRemoteGeneration) {
+            set((s) => ({
+              foods: mergeFoodLists(s.foods, personalSnapshot()),
+              foodsEpoch: s.foodsEpoch + 1,
+            }));
+          }
         } else {
           set({ authUserId: null, authEmail: null });
         }
       } catch {
-        set({
+        if (generation !== initRemoteGeneration) return;
+        commitFoods({
           usingMock: true,
           supabaseReady: false,
           foods: applyFoods(SEED_FOODS),
@@ -108,6 +138,11 @@ export function createAuthActions(set: KetoSet, get: KetoGet) {
           return false;
         }
         await loadUserData(set, get, data.user.id, data.user.email ?? null);
+        // Preservar pessoais locais após sync de perfil/diário.
+        set((s) => ({
+          foods: mergeFoodLists(s.foods, readPersistedPersonalFoods()),
+          foodsEpoch: s.foodsEpoch + 1,
+        }));
         return true;
       } catch (e) {
         set({
