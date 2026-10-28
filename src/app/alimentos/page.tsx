@@ -81,9 +81,10 @@ export default function AlimentosPage() {
             Alimentos
           </h1>
           <p className="text-muted-foreground">
-            Uma só biblioteca partilhada. Valores por 100 g — NC = HT − fibras −
-            polióis. Quando adicionas um alimento (com sessão iniciada), fica
-            disponível para todos.
+            Biblioteca partilhada: quando adicionas um alimento (com sessão),
+            fica disponível para todos. «Apagar» só o remove da tua lista — os
+            outros continuam a vê-lo. Remoção definitiva só o admin na base de
+            dados. Valores por 100 g — NC = HT − fibras − polióis.
             {usingMock
               ? " Em modo local tudo fica só neste browser."
               : " Entra na conta para partilhar e sincronizar o diário entre telemóvel e PC."}
@@ -210,18 +211,16 @@ export default function AlimentosPage() {
       >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Apagar alimento?</DialogTitle>
+            <DialogTitle>Remover da tua lista?</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Vais apagar{" "}
+              Vais ocultar{" "}
               <span className="font-medium text-foreground">
                 {deleteTarget?.name}
-              </span>
-              .
-              {" "}
-              Esta acção remove o alimento da biblioteca partilhada (se estiveres
-              autenticado) e não pode ser desfeita.
+              </span>{" "}
+              só para ti. Continua na biblioteca para os outros utilizadores.
+              Para apagar de vez para todos, só o admin na base de dados.
             </p>
             {deleteError ? (
               <p className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
@@ -243,7 +242,7 @@ export default function AlimentosPage() {
                 onClick={confirmDelete}
                 disabled={pending}
               >
-                {pending ? "A apagar…" : "Apagar"}
+                {pending ? "A remover…" : "Remover da minha lista"}
               </Button>
             </div>
           </div>
