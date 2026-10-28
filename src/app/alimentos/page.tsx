@@ -81,12 +81,12 @@ export default function AlimentosPage() {
             Alimentos
           </h1>
           <p className="text-muted-foreground">
-            Biblioteca global e pessoais. Valores por 100 g — NC = HT − fibras −
-            polióis. Podes editar ou apagar qualquer item: editar um global cria
-            uma cópia pessoal; apagar um global só o esconde neste dispositivo.
-            {!usingMock
-              ? " Pessoais sincronizam com o Supabase se estiveres autenticado."
-              : " Em modo local tudo fica guardado neste browser."}
+            Uma só biblioteca partilhada. Valores por 100 g — NC = HT − fibras −
+            polióis. Quando adicionas um alimento (com sessão iniciada), fica
+            disponível para todos.
+            {usingMock
+              ? " Em modo local tudo fica só neste browser."
+              : " Entra na conta para partilhar e sincronizar o diário entre telemóvel e PC."}
           </p>
         </div>
         <AddFoodDialog />
@@ -151,15 +151,6 @@ export default function AlimentosPage() {
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="font-medium">{food.name}</p>
-                    {food.is_global ? (
-                      <Badge variant="secondary" className="text-[10px]">
-                        Global
-                      </Badge>
-                    ) : (
-                      <Badge className="bg-emerald-600 text-[10px] hover:bg-emerald-600">
-                        Pessoal
-                      </Badge>
-                    )}
                     {food.category ? (
                       <Badge variant="outline" className="text-[10px]">
                         {food.category}
@@ -228,9 +219,9 @@ export default function AlimentosPage() {
                 {deleteTarget?.name}
               </span>
               .
-              {deleteTarget?.is_global
-                ? " Como é um alimento global, só desaparece neste dispositivo (o catálogo remoto mantém-se)."
-                : " Esta acção não pode ser desfeita."}
+              {" "}
+              Esta acção remove o alimento da biblioteca partilhada (se estiveres
+              autenticado) e não pode ser desfeita.
             </p>
             {deleteError ? (
               <p className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">

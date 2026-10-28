@@ -115,8 +115,8 @@ export function FoodLogForm() {
               placeholder="Escrever nome ou marca…"
             />
             <p className="text-[11px] text-muted-foreground">
-              {foods.filter((f) => !f.is_global).length} pessoais · {foods.length}{" "}
-              no total — novos no topo (sync #{foodsEpoch}).
+              {foods.length} alimento{foods.length === 1 ? "" : "s"} na biblioteca
+              (sync #{foodsEpoch}).
             </p>
           </div>
 

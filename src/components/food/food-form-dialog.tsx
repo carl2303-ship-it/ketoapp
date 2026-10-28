@@ -232,9 +232,7 @@ export function FoodFormDialog({
         <DialogHeader>
           <DialogTitle>
             {isEdit
-              ? food?.is_global
-                ? "Personalizar alimento (cria cópia pessoal)"
-                : "Editar alimento"
+              ? "Editar alimento"
               : "Adicionar alimento"}
           </DialogTitle>
         </DialogHeader>

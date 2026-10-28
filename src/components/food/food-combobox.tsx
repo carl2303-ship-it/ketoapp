@@ -59,17 +59,12 @@ export function FoodCombobox({
     );
   }, []);
 
-  const personalCount = useMemo(
-    () => foods.filter((f) => !f.is_global).length,
-    [foods],
-  );
-
   // Lista estável por epoch — Base UI Combobox pode cachear `items` entre updates.
   const items = useMemo(() => foods.slice(), [foods, foodsEpoch]);
 
   return (
     <Combobox.Root
-      key={`food-picker-${foodsEpoch}-${items.length}-${personalCount}`}
+      key={`food-picker-${foodsEpoch}-${items.length}`}
       items={items}
       value={selected}
       onValueChange={(food) => {
@@ -131,8 +126,8 @@ export function FoodCombobox({
             )}
           >
             <div className="border-b border-border/60 px-3 py-1.5 text-[11px] text-muted-foreground">
-              {personalCount} pessoal{personalCount === 1 ? "" : "is"} ·{" "}
-              {items.length} no total — pessoais no topo
+              {items.length} alimento{items.length === 1 ? "" : "s"} na biblioteca
+              partilhada
             </div>
             <Combobox.Empty>
               <p className="px-3 py-4 text-sm text-muted-foreground">
@@ -155,11 +150,6 @@ export function FoodCombobox({
                   <span className="col-start-2 min-w-0">
                     <span className="block truncate font-medium">
                       {food.name}
-                      {!food.is_global ? (
-                        <span className="ml-1.5 rounded bg-emerald-500/20 px-1 py-0.5 text-[10px] font-medium text-emerald-700 dark:text-emerald-300">
-                          Pessoal
-                        </span>
-                      ) : null}
                       {food.brand ? (
                         <span className="font-normal text-muted-foreground">
                           {" "}
