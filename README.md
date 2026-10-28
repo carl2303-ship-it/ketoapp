@@ -35,7 +35,10 @@ Sem chave válida, a UI corre em **modo mock** (localStorage + seed).
 ## Schema / migração
 
 1. `supabase/migrations/20260312173000_initial_schema.sql` — schema base (já aplicado).
-2. `supabase/migrations/20261028120000_shared_foods_catalog.sql` — **obrigatório**: biblioteca partilhada (todos os alimentos visíveis para todos; sem “pessoais”), dedupe + RLS. Correr no SQL Editor do projeto `oymdacaicfyejuizyosw`.
+2. `supabase/migrations/20261028120000_shared_foods_catalog.sql` — biblioteca partilhada (add = para todos), dedupe + RLS.
+3. `supabase/migrations/20261028140000_user_hidden_foods.sql` — «apagar» = ocultar só para mim; delete real só admin na BD.
+
+Correr 2 e 3 no SQL Editor do projeto `oymdacaicfyejuizyosw` (por esta ordem).
 
 ## Funcionalidades
 
