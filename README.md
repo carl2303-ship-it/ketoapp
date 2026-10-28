@@ -34,7 +34,8 @@ Sem chave válida, a UI corre em **modo mock** (localStorage + seed).
 
 ## Schema / migração
 
-Ficheiro: `supabase/migrations/20260312173000_initial_schema.sql` — **já aplicado** no projeto.
+1. `supabase/migrations/20260312173000_initial_schema.sql` — schema base (já aplicado).
+2. `supabase/migrations/20261028120000_shared_foods_catalog.sql` — **obrigatório**: biblioteca partilhada (todos os alimentos visíveis para todos; sem “pessoais”), dedupe + RLS. Correr no SQL Editor do projeto `oymdacaicfyejuizyosw`.
 
 ## Funcionalidades
 

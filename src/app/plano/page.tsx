@@ -218,8 +218,8 @@ export default function PlanoPage() {
                     placeholder="Escrever nome ou marca…"
                   />
                   <p className="text-[11px] text-muted-foreground">
-                    {foods.filter((f) => !f.is_global).length} pessoais na lista
-                    (Zustand)
+                    {foods.length} alimento{foods.length === 1 ? "" : "s"} na
+                    biblioteca
                   </p>
                 </div>
                 <div className="space-y-1.5">

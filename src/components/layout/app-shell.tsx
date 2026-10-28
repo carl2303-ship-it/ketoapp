@@ -112,8 +112,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {supabaseReady && !authUserId && !schemaMissing ? (
           <div className="flex flex-col items-center justify-center gap-2 border-t border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-center sm:flex-row sm:gap-3">
             <p className="text-xs text-amber-950 dark:text-amber-100">
-              Entra para sincronizar entre telemóvel e PC — alimentos pessoais,
-              diário e plano. Sem login ficam só neste dispositivo.
+              Entra com a mesma conta no telemóvel e no PC para sincronizar o
+              diário e o plano. A biblioteca de alimentos é partilhada; sem login
+              o diário fica só neste dispositivo.
             </p>
             <Button
               size="sm"
