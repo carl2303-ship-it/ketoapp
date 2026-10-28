@@ -228,12 +228,12 @@ export async function syncLocalDataToRemote(
     const stillLocal = get().foods.filter((f) => f && isLocalFoodId(f.id));
     const merged = mergeFoodLists(allFoods as Food[], stillLocal);
     flushPersonalFoodsToStorage(merged);
+    const hidden = new Set(get().hiddenGlobalIds);
     set((s) => ({
-      foods: merged,
+      foods: merged.filter((f) => !hidden.has(f.id)),
       foodsEpoch: s.foodsEpoch + 1,
       usingMock: false,
       supabaseReady: true,
-      hiddenGlobalIds: [],
     }));
   }
 
