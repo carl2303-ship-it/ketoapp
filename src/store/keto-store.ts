@@ -81,7 +81,8 @@ export const useKetoStore = create<KetoState>()(
         profile: s.profile,
         // Só rascunhos locais (food-*) — a biblioteca partilhada vem do Supabase.
         foods: s.foods.filter((f) => f && isLocalFoodId(f.id)),
-        hiddenGlobalIds: [] as string[],
+        // Ocultações locais (sincronizam para user_hidden_foods após login).
+        hiddenGlobalIds: s.hiddenGlobalIds,
         dailyLogs: s.dailyLogs,
         mealEntries: s.mealEntries,
         weeklyPlans: s.weeklyPlans,
@@ -90,11 +91,15 @@ export const useKetoStore = create<KetoState>()(
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<KetoState>;
         const drafts = (p.foods ?? []).filter((f) => f && isLocalFoodId(f.id));
+        const hidden = p.hiddenGlobalIds ?? [];
+        const hiddenSet = new Set(hidden);
         return {
           ...current,
           ...p,
-          hiddenGlobalIds: [],
-          foods: mergeFoodLists(current.foods, drafts),
+          hiddenGlobalIds: hidden,
+          foods: mergeFoodLists(current.foods, drafts).filter(
+            (f) => !hiddenSet.has(f.id),
+          ),
           hydrated: false,
         };
       },
