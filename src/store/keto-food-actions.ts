@@ -217,6 +217,11 @@ export function createFoodActions(set: KetoSet, get: KetoGet) {
       return { ok: true };
     },
 
+    /**
+     * "Apagar" = esconder só para este utilizador.
+     * A biblioteca partilhada mantém o alimento para os outros.
+     * Remoção definitiva: só admin na base de dados.
+     */
     deleteFood: async (id: string) => {
       const existing = get().foods.find((f) => f.id === id);
       if (!existing) {
@@ -241,42 +246,62 @@ export function createFoodActions(set: KetoSet, get: KetoGet) {
         }
         return {
           ok: false,
-          error: `Não podes apagar este alimento: está em ${parts.join(" e ")}. Remove essas entradas primeiro.`,
+          error: `Não podes ocultar este alimento: está em ${parts.join(" e ")}. Remove essas entradas primeiro.`,
         };
       }
+
+      // Rascunho local nunca sincronizado — remove só aqui.
+      if (id.startsWith("food-")) {
+        commitFoods(
+          set,
+          get,
+          get().foods.filter((f) => f.id !== id),
+        );
+        return { ok: true };
+      }
+
+      const hidden = Array.from(new Set([...get().hiddenGlobalIds, id]));
 
       if (
         get().supabaseReady &&
         get().authUserId &&
-        hasSupabaseCredentials() &&
-        !id.startsWith("food-")
+        hasSupabaseCredentials()
       ) {
         try {
           const supabase = createClient();
-          const { error } = await supabase.from("foods").delete().eq("id", id);
+          const { error } = await supabase.from("user_hidden_foods").upsert(
+            { user_id: get().authUserId!, food_id: id },
+            { onConflict: "user_id,food_id" },
+          );
           if (error) {
-            return {
-              ok: false,
-              error:
-                error.message.includes("restrict") || error.code === "23503"
-                  ? "Este alimento está a ser usado noutra tabela (ex. receita) e não pode ser apagado."
-                  : error.message || "Falha ao apagar no Supabase.",
-            };
+            // Sem tabela ainda: oculta só neste dispositivo.
+            set({
+              syncStatus: {
+                type: "info",
+                message:
+                  "Ocultado neste dispositivo. Corre a migração user_hidden_foods para sincronizar entre aparelhos.",
+              },
+            });
           }
-        } catch (e) {
-          return {
-            ok: false,
-            error:
-              e instanceof Error ? e.message : "Falha ao apagar no Supabase.",
-          };
+        } catch {
+          // mantém ocultação local
         }
       }
 
-      commitFoods(
-        set,
-        get,
-        get().foods.filter((f) => f.id !== id),
-      );
+      set((s) => {
+        const nextFoods = s.foods.filter((f) => f.id !== id);
+        flushPersonalFoodsToStorage(nextFoods);
+        return {
+          hiddenGlobalIds: hidden,
+          foods: nextFoods,
+          foodsEpoch: s.foodsEpoch + 1,
+          syncStatus: {
+            type: "ok",
+            message:
+              "Removido da tua lista. Continua disponível para os outros utilizadores.",
+          },
+        };
+      });
       return { ok: true };
     },
   };
