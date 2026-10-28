@@ -116,8 +116,7 @@ create policy "foods_update_shared" on public.foods
   using (true)
   with check (is_global = true and user_id is null);
 
+-- Sem DELETE para clients: "apagar" na app = ocultar (user_hidden_foods).
+-- Remoção definitiva da biblioteca: só admin no SQL Editor / service role.
 drop policy if exists "foods_delete_own" on public.foods;
 drop policy if exists "foods_delete_shared" on public.foods;
-create policy "foods_delete_shared" on public.foods
-  for delete to authenticated
-  using (true);
