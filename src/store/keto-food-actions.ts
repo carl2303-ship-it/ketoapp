@@ -5,44 +5,81 @@ import { hasSupabaseCredentials } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/client";
 import {
   flushPersonalFoodsToStorage,
+  foodKey,
   mergeFoodLists,
 } from "@/store/food-merge";
 import { uid } from "@/store/keto-profile";
 import type { KetoGet, KetoSet } from "@/store/keto-state";
-
-function withoutHidden(foods: Food[], hidden: string[]): Food[] {
-  if (!hidden.length) return foods;
-  const set = new Set(hidden);
-  return foods.filter((f) => !set.has(f.id));
-}
 
 function commitFoods(set: KetoSet, get: KetoGet, foods: Food[]) {
   set((s) => ({ foods, foodsEpoch: s.foodsEpoch + 1 }));
   flushPersonalFoodsToStorage(foods);
 }
 
+function sharedPayload(food: Omit<Food, "id" | "user_id" | "is_global">) {
+  return {
+    ...food,
+    user_id: null,
+    is_global: true,
+  };
+}
+
 export function createFoodActions(set: KetoSet, get: KetoGet) {
   return {
     addFood: async (food: Omit<Food, "id" | "user_id" | "is_global">) => {
+      // Reutilizar se já existir na lista (evita duplicados nome|marca).
+      const existingLocal = get().foods.find((f) => foodKey(f) === foodKey(food));
+      if (existingLocal) {
+        return {
+          ok: true,
+          synced: !existingLocal.id.startsWith("food-"),
+          foodId: existingLocal.id,
+          warning: "Já existia na biblioteca — reutilizei o existente.",
+        };
+      }
+
       const local: Food = {
         ...food,
         id: uid("food"),
-        user_id: get().authUserId ?? get().profile.id,
-        is_global: false,
+        user_id: null,
+        is_global: true,
       };
-      // Merge imediato + epoch + flush sync — pickers vêem já.
       commitFoods(set, get, mergeFoodLists(get().foods, [local]));
 
       if (get().supabaseReady && get().authUserId && hasSupabaseCredentials()) {
         try {
           const supabase = createClient();
+
+          // Já na nuvem com o mesmo nome|marca?
+          const { data: found } = await supabase
+            .from("foods")
+            .select("*")
+            .ilike("name", food.name.trim())
+            .limit(20);
+          const match = ((found ?? []) as Food[]).find(
+            (f) => foodKey(f) === foodKey(food),
+          );
+          if (match) {
+            commitFoods(
+              set,
+              get,
+              mergeFoodLists(
+                get().foods.filter((f) => f.id !== local.id),
+                [match],
+              ),
+            );
+            set({
+              syncStatus: {
+                type: "ok",
+                message: `"${match.name}" já estava na biblioteca partilhada.`,
+              },
+            });
+            return { ok: true, synced: true, foodId: match.id };
+          }
+
           const { data, error } = await supabase
             .from("foods")
-            .insert({
-              ...food,
-              user_id: get().authUserId,
-              is_global: false,
-            })
+            .insert(sharedPayload(food))
             .select()
             .single();
           if (!error && data) {
@@ -55,10 +92,32 @@ export function createFoodActions(set: KetoSet, get: KetoGet) {
             set({
               syncStatus: {
                 type: "ok",
-                message: `"${remote.name}" sincronizado com a nuvem.`,
+                message: `"${remote.name}" adicionado à biblioteca de todos.`,
               },
             });
             return { ok: true, synced: true, foodId: remote.id };
+          }
+          // Unique violation → refetch match
+          if (error?.code === "23505") {
+            const { data: again } = await supabase
+              .from("foods")
+              .select("*")
+              .ilike("name", food.name.trim())
+              .limit(20);
+            const hit = ((again ?? []) as Food[]).find(
+              (f) => foodKey(f) === foodKey(food),
+            );
+            if (hit) {
+              commitFoods(
+                set,
+                get,
+                mergeFoodLists(
+                  get().foods.filter((f) => f.id !== local.id),
+                  [hit],
+                ),
+              );
+              return { ok: true, synced: true, foodId: hit.id };
+            }
           }
           const warning =
             error?.message ||
@@ -86,7 +145,7 @@ export function createFoodActions(set: KetoSet, get: KetoGet) {
       }
 
       const warning = get().supabaseReady
-        ? "Guardado neste dispositivo. Entra na conta para sincronizar entre telemóvel e PC."
+        ? "Guardado neste dispositivo. Entra na conta para partilhar com todos e sincronizar o diário."
         : "Guardado neste dispositivo (modo local).";
       if (get().supabaseReady && !get().authUserId) {
         set({
@@ -101,7 +160,6 @@ export function createFoodActions(set: KetoSet, get: KetoGet) {
       };
     },
 
-    /** Qualquer alimento na lista pode ser editado/apagado neste dispositivo. */
     canMutateFood: (_food: Food) => true,
 
     updateFood: async (
@@ -113,105 +171,33 @@ export function createFoodActions(set: KetoSet, get: KetoGet) {
         return { ok: false, error: "Alimento não encontrado." };
       }
 
-      // Global: criar cópia pessoal e ocultar o original (não altera o remoto).
-      if (existing.is_global) {
-        const local: Food = {
-          ...existing,
-          ...food,
-          id: uid("food"),
-          user_id: get().authUserId ?? get().profile.id,
-          is_global: false,
-        };
-        set((s) => {
-          const hidden = Array.from(
-            new Set([...s.hiddenGlobalIds, existing.id]),
-          );
-          const nextFoods = withoutHidden(
-            mergeFoodLists(
-              s.foods.filter((f) => f.id !== existing.id),
-              [local],
-            ),
-            hidden,
-          );
-          flushPersonalFoodsToStorage(nextFoods);
-          return {
-            hiddenGlobalIds: hidden,
-            foods: nextFoods,
-            foodsEpoch: s.foodsEpoch + 1,
-            mealEntries: s.mealEntries.map((e) =>
-              e.food_id === existing.id ? { ...e, food_id: local.id } : e,
-            ),
-            weeklyPlans: s.weeklyPlans.map((p) =>
-              p.food_id === existing.id ? { ...p, food_id: local.id } : p,
-            ),
-          };
-        });
-
-        if (
-          get().supabaseReady &&
-          get().authUserId &&
-          hasSupabaseCredentials()
-        ) {
-          try {
-            const supabase = createClient();
-            const { data, error } = await supabase
-              .from("foods")
-              .insert({
-                ...food,
-                user_id: get().authUserId,
-                is_global: false,
-              })
-              .select()
-              .single();
-            if (!error && data) {
-              const remote = data as Food;
-              set((s) => {
-                const nextFoods = s.foods.map((f) =>
-                  f.id === local.id ? remote : f,
-                );
-                flushPersonalFoodsToStorage(nextFoods);
-                return {
-                  foods: nextFoods,
-                  foodsEpoch: s.foodsEpoch + 1,
-                  mealEntries: s.mealEntries.map((e) =>
-                    e.food_id === local.id ? { ...e, food_id: remote.id } : e,
-                  ),
-                  weeklyPlans: s.weeklyPlans.map((p) =>
-                    p.food_id === local.id ? { ...p, food_id: remote.id } : p,
-                  ),
-                };
-              });
-            }
-          } catch {
-            // mantém cópia local
-          }
-        }
-        return { ok: true };
-      }
-
+      const updated: Food = {
+        ...existing,
+        ...food,
+        user_id: null,
+        is_global: true,
+      };
       commitFoods(
         set,
         get,
-        get().foods.map((f) => (f.id === id ? { ...f, ...food } : f)),
+        mergeFoodLists(
+          get().foods.filter((f) => f.id !== id),
+          [updated],
+        ),
       );
 
       if (
         get().supabaseReady &&
         get().authUserId &&
         hasSupabaseCredentials() &&
-        !existing.is_global
+        !id.startsWith("food-")
       ) {
         try {
           const supabase = createClient();
           const { error } = await supabase
             .from("foods")
-            .update({
-              ...food,
-              user_id: get().authUserId,
-              is_global: false,
-            })
-            .eq("id", id)
-            .eq("user_id", get().authUserId);
+            .update(sharedPayload(food))
+            .eq("id", id);
           if (error) {
             return {
               ok: false,
@@ -222,7 +208,9 @@ export function createFoodActions(set: KetoSet, get: KetoGet) {
           return {
             ok: false,
             error:
-              e instanceof Error ? e.message : "Falha ao actualizar no Supabase.",
+              e instanceof Error
+                ? e.message
+                : "Falha ao actualizar no Supabase.",
           };
         }
       }
@@ -257,39 +245,20 @@ export function createFoodActions(set: KetoSet, get: KetoGet) {
         };
       }
 
-      // Global: só esconder neste dispositivo (RLS não deixa apagar seed remoto).
-      if (existing.is_global) {
-        set((s) => {
-          const hidden = Array.from(new Set([...s.hiddenGlobalIds, id]));
-          const nextFoods = s.foods.filter((f) => f.id !== id);
-          flushPersonalFoodsToStorage(nextFoods);
-          return {
-            hiddenGlobalIds: hidden,
-            foods: nextFoods,
-            foodsEpoch: s.foodsEpoch + 1,
-          };
-        });
-        return { ok: true };
-      }
-
       if (
         get().supabaseReady &&
         get().authUserId &&
-        hasSupabaseCredentials()
+        hasSupabaseCredentials() &&
+        !id.startsWith("food-")
       ) {
         try {
           const supabase = createClient();
-          const { error } = await supabase
-            .from("foods")
-            .delete()
-            .eq("id", id)
-            .eq("user_id", get().authUserId);
+          const { error } = await supabase.from("foods").delete().eq("id", id);
           if (error) {
             return {
               ok: false,
               error:
-                error.message.includes("restrict") ||
-                error.code === "23503"
+                error.message.includes("restrict") || error.code === "23503"
                   ? "Este alimento está a ser usado noutra tabela (ex. receita) e não pode ser apagado."
                   : error.message || "Falha ao apagar no Supabase.",
             };
