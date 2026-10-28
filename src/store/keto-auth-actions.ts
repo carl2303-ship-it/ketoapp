@@ -11,6 +11,7 @@ import {
 } from "@/store/food-merge";
 import { defaultProfile } from "@/store/keto-profile";
 import type { KetoGet, KetoSet } from "@/store/keto-state";
+import { syncHiddenFoods } from "@/store/load-hidden-foods";
 import { loadUserData } from "@/store/load-user-data";
 import { syncLocalDataToRemote } from "@/store/sync-local-to-remote";
 
@@ -47,14 +48,25 @@ async function afterAuth(
     // 2) Perfil + diário + plano remotos.
     await loadUserData(set, get, userId, email);
 
-    // 3) Biblioteca partilhada + rascunhos locais ainda sem UUID; limpar hidden.
+    // 3) Ocultações por utilizador (apagar = só para mim).
+    let hiddenIds: string[] = get().hiddenGlobalIds;
+    try {
+      hiddenIds = await syncHiddenFoods(set, get, userId);
+    } catch {
+      // mantém local
+    }
+    const hidden = new Set(hiddenIds);
+
+    // 4) Biblioteca partilhada + rascunhos locais; aplica ocultações.
     set((s) => ({
       foods: mergeFoodLists(
-        s.foods,
-        readPersistedPersonalFoods().filter((f) => isLocalFoodId(f.id)),
+        s.foods.filter((f) => !hidden.has(f.id)),
+        readPersistedPersonalFoods()
+          .filter((f) => isLocalFoodId(f.id))
+          .filter((f) => !hidden.has(f.id)),
       ),
       foodsEpoch: s.foodsEpoch + 1,
-      hiddenGlobalIds: [],
+      hiddenGlobalIds: hiddenIds,
       authDialogOpen: false,
       syncing: false,
       lastSyncedAt: new Date().toISOString(),
@@ -126,8 +138,12 @@ export function createAuthActions(set: KetoSet, get: KetoGet) {
         return mergeFoodLists(fromState, fromStorage);
       };
 
-      const applyFoods = (base: Food[]) =>
-        mergeFoodLists(base, draftSnapshot());
+      const applyFoods = (base: Food[]) => {
+        const hidden = new Set(get().hiddenGlobalIds);
+        return mergeFoodLists(base, draftSnapshot()).filter(
+          (f) => !hidden.has(f.id),
+        );
+      };
 
       const commitFoods = (partial: {
         usingMock: boolean;
