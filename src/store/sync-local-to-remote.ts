@@ -4,14 +4,11 @@ import type { DailyLog, Food, MealEntry, WeeklyPlan } from "@/lib/types";
 import { createClient } from "@/lib/supabase/client";
 import {
   flushPersonalFoodsToStorage,
+  foodKey,
   isLocalFoodId,
   mergeFoodLists,
 } from "@/store/food-merge";
 import type { KetoGet, KetoSet } from "@/store/keto-state";
-
-function foodKey(f: Pick<Food, "name" | "brand">): string {
-  return `${f.name.trim().toLowerCase()}|${(f.brand ?? "").trim().toLowerCase()}`;
-}
 
 function isLocalGeneratedId(id: string): boolean {
   return /^(food|log|meal|plan)-/i.test(id);
@@ -24,8 +21,8 @@ function isUuid(id: string): boolean {
 }
 
 /**
- * Depois do login/signup: sobe alimentos pessoais, diário e plano locais
- * para o Supabase e remapeia IDs `food-*`/`log-*`/`meal-*`/`plan-*` → UUIDs.
+ * Depois do login/signup: sobe rascunhos locais de alimentos (como partilhados),
+ * diário e plano; remapeia IDs `food-*`/`log-*`/`meal-*`/`plan-*` → UUIDs.
  */
 export async function syncLocalDataToRemote(
   set: KetoSet,
@@ -37,24 +34,23 @@ export async function syncLocalDataToRemote(
   let mealsSynced = 0;
   let plansSynced = 0;
 
-  // 1) Alimentos pessoais já na BD (outro dispositivo / login anterior)
-  const { data: remotePersonal } = await supabase
+  // 1) Biblioteca remota completa (partilhada) — dedupe por nome|marca
+  const { data: remoteAll } = await supabase
     .from("foods")
     .select("*")
-    .eq("user_id", userId)
-    .eq("is_global", false);
+    .order("name");
 
   const remoteByKey = new Map<string, Food>();
-  for (const f of (remotePersonal ?? []) as Food[]) {
+  for (const f of (remoteAll ?? []) as Food[]) {
     remoteByKey.set(foodKey(f), f);
   }
 
   const idRemap = new Map<string, string>();
-  const localPersonal = get().foods.filter(
-    (f) => f && !f.is_global && (isLocalFoodId(f.id) || !isUuid(f.id)),
+  const localDrafts = get().foods.filter(
+    (f) => f && (isLocalFoodId(f.id) || !isUuid(f.id)),
   );
 
-  for (const local of localPersonal) {
+  for (const local of localDrafts) {
     const existing = remoteByKey.get(foodKey(local));
     if (existing) {
       idRemap.set(local.id, existing.id);
@@ -77,8 +73,8 @@ export async function syncLocalDataToRemote(
         potassium_mg: local.potassium_mg,
         magnesium_mg: local.magnesium_mg,
         saturated_fat_g: local.saturated_fat_g,
-        user_id: userId,
-        is_global: false,
+        user_id: null,
+        is_global: true,
       })
       .select()
       .single();
@@ -88,6 +84,10 @@ export async function syncLocalDataToRemote(
       idRemap.set(local.id, remote.id);
       remoteByKey.set(foodKey(remote), remote);
       foodsSynced += 1;
+    } else if (error?.code === "23505") {
+      // Unique race — procurar de novo
+      const hit = remoteByKey.get(foodKey(local));
+      if (hit) idRemap.set(local.id, hit.id);
     }
   }
 
@@ -96,9 +96,8 @@ export async function syncLocalDataToRemote(
       const nextFoods = s.foods.map((f) => {
         const nextId = idRemap.get(f.id);
         if (!nextId) return f;
-        return { ...f, id: nextId, user_id: userId, is_global: false };
+        return { ...f, id: nextId, user_id: null, is_global: true };
       });
-      // Dedup por id após remap
       const merged = mergeFoodLists([], nextFoods);
       flushPersonalFoodsToStorage(merged);
       return {
@@ -219,27 +218,22 @@ export async function syncLocalDataToRemote(
     }
   }
 
-  // 4) Refetch biblioteca completa (globais + pessoais deste user)
+  // 4) Refetch biblioteca partilhada completa
   const { data: allFoods } = await supabase
     .from("foods")
     .select("*")
     .order("name");
 
   if (allFoods && allFoods.length > 0) {
-    const hidden = new Set(get().hiddenGlobalIds);
-    const stillLocal = get().foods.filter(
-      (f) => f && !f.is_global && isLocalFoodId(f.id),
-    );
-    const merged = mergeFoodLists(
-      (allFoods as Food[]).filter((f) => !hidden.has(f.id)),
-      stillLocal,
-    );
+    const stillLocal = get().foods.filter((f) => f && isLocalFoodId(f.id));
+    const merged = mergeFoodLists(allFoods as Food[], stillLocal);
     flushPersonalFoodsToStorage(merged);
     set((s) => ({
       foods: merged,
       foodsEpoch: s.foodsEpoch + 1,
       usingMock: false,
       supabaseReady: true,
+      hiddenGlobalIds: [],
     }));
   }
 

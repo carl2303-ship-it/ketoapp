@@ -51,6 +51,18 @@ export function createMealActions(set: KetoSet, get: KetoGet) {
 
       if (get().supabaseReady && get().authUserId && hasSupabaseCredentials()) {
         try {
+          const foodId = entry.food_id;
+          if (foodId && /^(food-)/i.test(foodId)) {
+            set({
+              syncStatus: {
+                type: "info",
+                message:
+                  "Refeição guardada aqui. O alimento ainda não está na nuvem — toca em Sync / Entra de novo para enviar o diário.",
+              },
+            });
+            return;
+          }
+
           const supabase = createClient();
           const userId = get().authUserId!;
           const existingLog = get().getLogForDate(date);
@@ -68,7 +80,17 @@ export function createMealActions(set: KetoSet, get: KetoGet) {
             )
             .select()
             .single();
-          if (logErr || !logRow) return;
+          if (logErr || !logRow) {
+            set({
+              syncStatus: {
+                type: "error",
+                message:
+                  logErr?.message ||
+                  "Não foi possível sincronizar o dia. Tenta Sync agora.",
+              },
+            });
+            return;
+          }
 
           const remoteLog = logRow as DailyLog;
           // Remapear TODAS as entradas locais deste dia para o id remoto do log.
@@ -103,10 +125,36 @@ export function createMealActions(set: KetoSet, get: KetoGet) {
                 e.id === entry.id ? (remote as MealEntry) : e,
               ),
             }));
+          } else if (error) {
+            set({
+              syncStatus: {
+                type: "error",
+                message:
+                  error.message ||
+                  "Refeição local OK, mas falhou o envio para a nuvem.",
+              },
+            });
           }
-        } catch {
-          // keep local
+        } catch (e) {
+          set({
+            syncStatus: {
+              type: "error",
+              message:
+                e instanceof Error
+                  ? e.message
+                  : "Falha de rede ao sincronizar a refeição.",
+            },
+          });
         }
+      } else if (get().supabaseReady && !get().authUserId) {
+        set({
+          syncStatus: {
+            type: "info",
+            message:
+              "Refeição só neste dispositivo. Entra na mesma conta no telemóvel e no PC para sincronizar.",
+          },
+          authDialogOpen: true,
+        });
       }
     },
 

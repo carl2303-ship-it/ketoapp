@@ -5,6 +5,7 @@ import { SEED_FOODS } from "@/lib/mock/seed-foods";
 import { hasSupabaseCredentials } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/client";
 import {
+  isLocalFoodId,
   mergeFoodLists,
   readPersistedPersonalFoods,
 } from "@/store/food-merge";
@@ -46,10 +47,14 @@ async function afterAuth(
     // 2) Perfil + diário + plano remotos.
     await loadUserData(set, get, userId, email);
 
-    // 3) Preservar quaisquer pessoais locais que ainda não sincronizaram.
+    // 3) Biblioteca partilhada + rascunhos locais ainda sem UUID; limpar hidden.
     set((s) => ({
-      foods: mergeFoodLists(s.foods, readPersistedPersonalFoods()),
+      foods: mergeFoodLists(
+        s.foods,
+        readPersistedPersonalFoods().filter((f) => isLocalFoodId(f.id)),
+      ),
       foodsEpoch: s.foodsEpoch + 1,
+      hiddenGlobalIds: [],
       authDialogOpen: false,
       syncing: false,
       lastSyncedAt: new Date().toISOString(),
@@ -112,19 +117,17 @@ export function createAuthActions(set: KetoSet, get: KetoGet) {
     initRemote: async () => {
       const generation = ++initRemoteGeneration;
 
-      /** Pessoais actuais em memória + o que ainda estiver no persist (todas as chaves). */
-      const personalSnapshot = (): Food[] => {
-        const fromState = get().foods.filter((f) => f && !f.is_global);
-        const fromStorage = readPersistedPersonalFoods();
+      /** Rascunhos locais (food-*) + persist — a biblioteca remota é a fonte. */
+      const draftSnapshot = (): Food[] => {
+        const fromState = get().foods.filter((f) => f && isLocalFoodId(f.id));
+        const fromStorage = readPersistedPersonalFoods().filter((f) =>
+          isLocalFoodId(f.id),
+        );
         return mergeFoodLists(fromState, fromStorage);
       };
 
-      const applyFoods = (base: Food[]) => {
-        const hidden = new Set(get().hiddenGlobalIds);
-        return mergeFoodLists(base, personalSnapshot()).filter(
-          (f) => !hidden.has(f.id),
-        );
-      };
+      const applyFoods = (base: Food[]) =>
+        mergeFoodLists(base, draftSnapshot());
 
       const commitFoods = (partial: {
         usingMock: boolean;
